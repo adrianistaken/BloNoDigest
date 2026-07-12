@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "python manage.py collectstatic --noinput"
+  },
+  "deploy": {
+    "startCommand": "python manage.py generate_digest",
+    "cronSchedule": "0 11 * * 4",
+    "restartPolicyType": "NEVER"
+  }
+}
