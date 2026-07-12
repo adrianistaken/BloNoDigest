@@ -1,0 +1,76 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{{ event.canonical_title }} — Digest Admin{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-3">
+  <h1 class="text-2xl font-bold">{{ event.canonical_title|truncatechars:80 }}</h1>
+  <div class="flex gap-2">
+    <form method="post" action="{% url 'dashboard:event_action' event.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'dashboard:event_detail' event.pk %}">
+      <button name="action" value="approve" class="bg-green-600 text-white text-sm px-4 py-2 rounded hover:bg-green-700">Approve</button>
+      <button name="action" value="reject" class="bg-red-600 text-white text-sm px-4 py-2 rounded hover:bg-red-700">Reject</button>
+      <button name="action" value="mark_duplicate" class="bg-amber-500 text-white text-sm px-4 py-2 rounded hover:bg-amber-600">Mark duplicate</button>
+    </form>
+    {% if event.source_url %}
+      <a href="{{ event.source_url }}" target="_blank" rel="noopener" class="bg-slate-200 text-sm px-4 py-2 rounded hover:bg-slate-300">Open source ↗</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="flex flex-wrap gap-2 mt-3 text-sm">
+  <span class="bg-slate-200 px-2 py-0.5 rounded">status: <b>{{ event.status }}</b></span>
+  <span class="bg-slate-200 px-2 py-0.5 rounded">score: <b>{{ event.quality_score }}</b></span>
+  <span class="bg-slate-200 px-2 py-0.5 rounded">source: {{ event.primary_source.name|default:"manual" }}</span>
+  {% for warning in event.missing_data_warnings %}
+    <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded">⚠ {{ warning }}</span>
+  {% endfor %}
+</div>
+
+{% if possible_duplicates %}
+<div class="bg-amber-50 border border-amber-300 rounded p-4 mt-4">
+  <p class="font-bold text-amber-800">Possible duplicates</p>
+  <ul class="mt-1 text-sm list-disc ml-5">
+    {% for dup in possible_duplicates %}
+      <li>
+        <a class="text-blue-700 underline" href="{% url 'dashboard:event_detail' dup.pk %}">{{ dup.canonical_title }}</a>
+        — {{ dup.starts_at }} · {{ dup.location_display }} · {{ dup.status }}
+      </li>
+    {% endfor %}
+  </ul>
+  <p class="text-xs text-amber-700 mt-2">Keep the best one approved; mark the others as duplicates.</p>
+</div>
+{% endif %}
+
+{% if source_links %}
+<div class="bg-white rounded shadow p-4 mt-4 text-sm">
+  <p class="font-bold">Also seen on</p>
+  <ul class="list-disc ml-5 mt-1">
+    {% for link in source_links %}
+      <li>{{ link.source.name }} — <a class="text-blue-700 underline" href="{{ link.source_url }}" target="_blank" rel="noopener">{{ link.source_url|truncatechars:80 }}</a></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form method="post" class="bg-white rounded shadow p-5 mt-4 grid gap-4 sm:grid-cols-2">
+  {% csrf_token %}
+  {% for field in form %}
+    <div class="{% if field.name == 'description' or field.name == 'editorial_notes' or field.name == 'categories' %}sm:col-span-2{% endif %}">
+      <label class="block text-sm font-bold text-slate-600">{{ field.label }}</label>
+      <div class="mt-1 [&_input]:w-full [&_input]:border [&_input]:rounded [&_input]:px-2 [&_input]:py-1.5
+                  [&_textarea]:w-full [&_textarea]:border [&_textarea]:rounded [&_textarea]:px-2 [&_textarea]:py-1.5
+                  [&_select]:border [&_select]:rounded [&_select]:px-2 [&_select]:py-1.5
+                  {% if field.name == 'categories' %}[&_input]:!w-auto [&_ul]:grid [&_ul]:grid-cols-3 [&_ul]:gap-1 [&_li]:flex [&_li]:items-center [&_label]:!font-normal{% endif %}">
+        {{ field }}
+      </div>
+      {% if field.errors %}<p class="text-xs text-red-600 mt-1">{{ field.errors.0 }}</p>{% endif %}
+    </div>
+  {% endfor %}
+  <div class="sm:col-span-2">
+    <button class="bg-slate-900 text-white px-5 py-2 rounded hover:bg-slate-700">Save changes</button>
+    <a href="{% url 'dashboard:events' %}" class="ml-3 text-slate-500 underline text-sm">back to events</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,282 @@
+"""Internal review dashboard (spec §19/§23). Staff-only, utilitarian."""
+
+from datetime import timedelta
+
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.core.paginator import Paginator
+from django.db.models import Count, Q
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.clickjacking import xframe_options_sameorigin
+from django.views.decorators.http import require_POST
+
+from .digests import generate_digest_issue, upcoming_weekend
+from .emails import render_digest, send_digest, send_test_email
+from .forms import EventForm
+from .ingest.importer import import_source
+from .models import (
+    DIGEST_SECTIONS,
+    DigestEvent,
+    DigestIssue,
+    Event,
+    EventSource,
+    ImportRun,
+    Region,
+    Subscriber,
+)
+
+
+def _default_region():
+    return Region.objects.get(slug=settings.DEFAULT_REGION_SLUG)
+
+
+@staff_member_required
+def home(request):
+    region = _default_region()
+    sources = region.sources.all()
+    last_run = ImportRun.objects.filter(source__region=region).first()
+    context = {
+        "region": region,
+        "subscriber_count": region.subscribers.filter(status=Subscriber.Status.ACTIVE).count(),
+        "needs_review_count": region.events.filter(status=Event.Status.NEEDS_REVIEW).count(),
+        "approved_count": region.events.filter(status=Event.Status.APPROVED).count(),
+        "broken_sources": [s for s in sources if s.is_broken],
+        "source_count": sources.count(),
+        "last_run": last_run,
+        "latest_digest": region.digest_issues.first(),
+    }
+    return render(request, "dashboard/home.html", context)
+
+
+@staff_member_required
+def sources(request):
+    region = _default_region()
+    source_list = (
+        region.sources.all()
+        .annotate(event_count=Count("primary_events", distinct=True))
+        .order_by("name")
+    )
+    return render(request, "dashboard/sources.html", {"sources": source_list, "region": region})
+
+
+@staff_member_required
+@require_POST
+def run_source_import(request, source_id):
+    source = get_object_or_404(EventSource, pk=source_id)
+    run = import_source(source)
+    level = messages.SUCCESS if run.status in ("success", "partial_success") else messages.ERROR
+    messages.add_message(
+        request, level,
+        f"{source.name}: {run.status} — found {run.events_found_count}, "
+        f"created {run.events_created_count}, updated {run.events_updated_count}, "
+        f"rejected {run.events_rejected_count}."
+        + (f" Error: {run.error_message[:200]}" if run.error_message else ""),
+    )
+    return redirect("dashboard:sources")
+
+
+@staff_member_required
+def import_runs(request):
+    runs = ImportRun.objects.select_related("source").all()[:100]
+    return render(request, "dashboard/import_runs.html", {"runs": runs})
+
+
+@staff_member_required
+def events(request):
+    region = _default_region()
+    queryset = region.events.select_related("primary_source", "duplicate_of").all()
+
+    status = request.GET.get("status", "")
+    if status:
+        queryset = queryset.filter(status=status)
+
+    quick = request.GET.get("filter", "")
+    today = timezone.now().date()
+    friday, sunday = upcoming_weekend(region.timezone)
+    if quick == "this_weekend":
+        queryset = queryset.filter(starts_at__date__gte=friday, starts_at__date__lte=sunday)
+    elif quick == "next_week":
+        queryset = queryset.filter(
+            starts_at__date__gt=sunday, starts_at__date__lte=sunday + timedelta(days=7)
+        )
+    elif quick == "upcoming":
+        queryset = queryset.filter(starts_at__date__gte=today)
+    elif quick == "duplicates":
+        queryset = queryset.filter(Q(duplicate_of__isnull=False) | Q(duplicates__isnull=False)).distinct()
+    elif quick == "missing_location":
+        queryset = queryset.filter(venue_name="", city="", address_line="")
+    elif quick == "missing_time":
+        queryset = queryset.filter(time_is_known=False)
+
+    source_slug = request.GET.get("source", "")
+    if source_slug:
+        queryset = queryset.filter(primary_source__slug=source_slug)
+
+    queryset = queryset.order_by("starts_at")
+    page = Paginator(queryset, 50).get_page(request.GET.get("page"))
+    context = {
+        "page": page,
+        "statuses": Event.Status.choices,
+        "sources": region.sources.order_by("name"),
+        "current": {"status": status, "filter": quick, "source": source_slug},
+    }
+    return render(request, "dashboard/events.html", context)
+
+
+@staff_member_required
+def event_detail(request, event_id):
+    event = get_object_or_404(
+        Event.objects.select_related("primary_source", "duplicate_of"), pk=event_id
+    )
+    if request.method == "POST":
+        form = EventForm(request.POST, instance=event)
+        if form.is_valid():
+            updated = form.save(commit=False)
+            updated.approved_for_digest = updated.status == Event.Status.APPROVED
+            updated.save()
+            messages.success(request, "Event saved.")
+            return redirect("dashboard:event_detail", event_id=event.pk)
+    else:
+        form = EventForm(instance=event)
+
+    possible_duplicates = (
+        Event.objects.filter(region=event.region, duplicate_group_key=event.duplicate_group_key)
+        .exclude(pk=event.pk)
+        if event.duplicate_group_key else Event.objects.none()
+    )
+    context = {
+        "event": event,
+        "form": form,
+        "possible_duplicates": list(possible_duplicates) + list(event.duplicates.all()),
+        "source_links": event.source_links.select_related("source"),
+    }
+    return render(request, "dashboard/event_detail.html", context)
+
+
+@staff_member_required
+@require_POST
+def event_action(request, event_id):
+    event = get_object_or_404(Event, pk=event_id)
+    action = request.POST.get("action")
+    if action == "approve":
+        event.status = Event.Status.APPROVED
+        event.approved_for_digest = True
+        messages.success(request, f"Approved: {event.canonical_title}")
+    elif action == "reject":
+        event.status = Event.Status.REJECTED
+        event.approved_for_digest = False
+        messages.info(request, f"Rejected: {event.canonical_title}")
+    elif action == "mark_duplicate":
+        event.status = Event.Status.DUPLICATE
+        event.approved_for_digest = False
+        messages.info(request, f"Marked duplicate: {event.canonical_title}")
+    event.save()
+    return redirect(request.POST.get("next") or "dashboard:events")
+
+
+@staff_member_required
+def digests(request):
+    region = _default_region()
+    if request.method == "POST":
+        issue = generate_digest_issue(region.slug)
+        messages.success(
+            request, f"Draft generated with {issue.digest_events.count()} events."
+        )
+        return redirect("dashboard:digest_detail", issue_id=issue.pk)
+    return render(
+        request, "dashboard/digests.html", {"issues": region.digest_issues.all()}
+    )
+
+
+@staff_member_required
+def digest_detail(request, issue_id):
+    issue = get_object_or_404(DigestIssue, pk=issue_id)
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action in ("move_up", "move_down", "set_section", "set_blurb", "remove", "restore"):
+            _digest_event_action(request, issue, action)
+        elif action == "update_meta":
+            issue.subject_line = request.POST.get("subject_line", issue.subject_line)[:300]
+            issue.intro_text = request.POST.get("intro_text", issue.intro_text)
+            issue.save(update_fields=["subject_line", "intro_text", "updated_at"])
+            messages.success(request, "Digest details saved.")
+        elif action == "send_test":
+            to = send_test_email(issue, request.POST.get("test_email") or None)
+            messages.success(request, f"Test email sent to {to}.")
+        elif action == "send_final":
+            if issue.status == DigestIssue.Status.SENT:
+                messages.error(request, "This issue was already sent.")
+            else:
+                sent, failed = send_digest(issue)
+                messages.success(request, f"Digest sent to {sent} subscribers ({failed} failed).")
+        return redirect("dashboard:digest_detail", issue_id=issue.pk)
+
+    context = {
+        "issue": issue,
+        "sections": issue.sections_with_events(),
+        "removed": issue.digest_events.filter(include_in_email=False).select_related("event"),
+        "section_choices": DIGEST_SECTIONS,
+        "active_subscriber_count": issue.region.subscribers.filter(
+            status=Subscriber.Status.ACTIVE
+        ).count(),
+    }
+    return render(request, "dashboard/digest_detail.html", context)
+
+
+def _digest_event_action(request, issue, action):
+    digest_event = get_object_or_404(
+        DigestEvent, pk=request.POST.get("digest_event_id"), digest_issue=issue
+    )
+    if action in ("move_up", "move_down"):
+        offset = -1 if action == "move_up" else 1
+        siblings = list(issue.digest_events.filter(section=digest_event.section).order_by("position"))
+        index = siblings.index(digest_event)
+        swap_index = index + offset
+        if 0 <= swap_index < len(siblings):
+            other = siblings[swap_index]
+            digest_event.position, other.position = other.position, digest_event.position
+            digest_event.save(update_fields=["position"])
+            other.save(update_fields=["position"])
+    elif action == "set_section":
+        section = request.POST.get("section")
+        if section in dict(DIGEST_SECTIONS):
+            digest_event.section = section
+            digest_event.save(update_fields=["section"])
+    elif action == "set_blurb":
+        digest_event.custom_blurb = request.POST.get("custom_blurb", "")
+        digest_event.save(update_fields=["custom_blurb"])
+    elif action == "remove":
+        digest_event.include_in_email = False
+        digest_event.save(update_fields=["include_in_email"])
+    elif action == "restore":
+        digest_event.include_in_email = True
+        digest_event.save(update_fields=["include_in_email"])
+
+
+@staff_member_required
+@xframe_options_sameorigin
+def digest_preview(request, issue_id):
+    """Raw email HTML, loaded in an iframe on the digest page."""
+    issue = get_object_or_404(DigestIssue, pk=issue_id)
+    html, _ = render_digest(issue, unsubscribe_url="#")
+    return HttpResponse(html)
+
+
+@staff_member_required
+def subscribers(request):
+    region = _default_region()
+    queryset = region.subscribers.order_by("-subscribed_at")
+    counts = {
+        "active": queryset.filter(status=Subscriber.Status.ACTIVE).count(),
+        "unsubscribed": queryset.filter(status=Subscriber.Status.UNSUBSCRIBED).count(),
+        "total": queryset.count(),
+    }
+    return render(
+        request,
+        "dashboard/subscribers.html",
+        {"counts": counts, "recent": queryset[:100]},
+    )

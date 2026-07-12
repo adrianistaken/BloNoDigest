@@ -1,0 +1,57 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Sources — Digest Admin{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between">
+  <h1 class="text-2xl font-bold">Event sources</h1>
+  <a href="/django-admin/curator/eventsource/add/" class="bg-slate-900 text-white text-sm px-4 py-2 rounded hover:bg-slate-700">+ Add source</a>
+</div>
+
+<div class="bg-white rounded shadow mt-4 overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-left text-slate-500">
+      <tr>
+        <th class="px-4 py-2">Name</th>
+        <th class="px-4 py-2">Type</th>
+        <th class="px-4 py-2">Enabled</th>
+        <th class="px-4 py-2">Events</th>
+        <th class="px-4 py-2">Last success</th>
+        <th class="px-4 py-2">Status</th>
+        <th class="px-4 py-2"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for source in sources %}
+      <tr>
+        <td class="px-4 py-2">
+          <a href="/django-admin/curator/eventsource/{{ source.pk }}/change/" class="font-medium text-blue-700 hover:underline">{{ source.name }}</a>
+          {% if source.url %}<a href="{{ source.url }}" target="_blank" rel="noopener" class="text-slate-400 ml-1">↗</a>{% endif %}
+        </td>
+        <td class="px-4 py-2"><code class="bg-slate-100 px-1 rounded">{{ source.source_type }}</code></td>
+        <td class="px-4 py-2">{% if source.enabled %}✅{% else %}—{% endif %}</td>
+        <td class="px-4 py-2">{{ source.event_count }}</td>
+        <td class="px-4 py-2 text-slate-500">{{ source.last_success_at|default:"never" }}</td>
+        <td class="px-4 py-2">
+          {% if source.is_broken %}
+            <span class="text-red-700 font-bold" title="{{ source.last_error_message }}">broken</span>
+          {% elif source.last_success_at %}
+            <span class="text-green-700">ok</span>
+          {% else %}
+            <span class="text-slate-400">not run</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-2">
+          <form method="post" action="{% url 'dashboard:run_source_import' source.pk %}">
+            {% csrf_token %}
+            <button class="text-xs bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded" {% if not source.enabled %}disabled{% endif %}>Run import</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="px-4 py-6 text-center text-slate-500">No sources yet. Run <code>python manage.py seed_region</code> or add one.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

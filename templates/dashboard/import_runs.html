@@ -1,0 +1,44 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Import runs — Digest Admin{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold">Import runs</h1>
+
+<div class="bg-white rounded shadow mt-4 overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-left text-slate-500">
+      <tr>
+        <th class="px-4 py-2">Source</th>
+        <th class="px-4 py-2">Status</th>
+        <th class="px-4 py-2">Started</th>
+        <th class="px-4 py-2">Found</th>
+        <th class="px-4 py-2">Created</th>
+        <th class="px-4 py-2">Updated</th>
+        <th class="px-4 py-2">Rejected</th>
+        <th class="px-4 py-2">Error</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for run in runs %}
+      <tr>
+        <td class="px-4 py-2 font-medium">{{ run.source.name }}</td>
+        <td class="px-4 py-2">
+          {% if run.status == 'success' %}<span class="text-green-700">{{ run.status }}</span>
+          {% elif run.status == 'failed' %}<span class="text-red-700 font-bold">{{ run.status }}</span>
+          {% else %}<span class="text-amber-600">{{ run.status }}</span>{% endif %}
+        </td>
+        <td class="px-4 py-2 text-slate-500">{{ run.started_at }}</td>
+        <td class="px-4 py-2">{{ run.events_found_count }}</td>
+        <td class="px-4 py-2">{{ run.events_created_count }}</td>
+        <td class="px-4 py-2">{{ run.events_updated_count }}</td>
+        <td class="px-4 py-2">{{ run.events_rejected_count }}</td>
+        <td class="px-4 py-2 text-red-700 max-w-xs truncate" title="{{ run.error_message }}">{{ run.error_message|truncatechars:60 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" class="px-4 py-6 text-center text-slate-500">No import runs yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

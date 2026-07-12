@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Digest Admin{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen">
+  <nav class="bg-slate-900 text-slate-100">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+      <a href="{% url 'dashboard:home' %}" class="font-bold text-base">BN Digest Admin</a>
+      <a href="{% url 'dashboard:sources' %}" class="hover:underline">Sources</a>
+      <a href="{% url 'dashboard:import_runs' %}" class="hover:underline">Import runs</a>
+      <a href="{% url 'dashboard:events' %}" class="hover:underline">Events</a>
+      <a href="{% url 'dashboard:digests' %}" class="hover:underline">Digests</a>
+      <a href="{% url 'dashboard:subscribers' %}" class="hover:underline">Subscribers</a>
+      <span class="flex-1"></span>
+      <a href="/django-admin/" class="text-slate-400 hover:underline">Django admin</a>
+      <a href="/" class="text-slate-400 hover:underline">Public site ↗</a>
+    </div>
+  </nav>
+
+  {% if messages %}
+    <div class="max-w-6xl mx-auto px-4 mt-4 space-y-2">
+      {% for message in messages %}
+        <div class="px-4 py-2 rounded text-sm border
+          {% if message.tags == 'error' %}bg-red-50 border-red-300 text-red-800
+          {% elif message.tags == 'success' %}bg-green-50 border-green-300 text-green-800
+          {% else %}bg-blue-50 border-blue-300 text-blue-800{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

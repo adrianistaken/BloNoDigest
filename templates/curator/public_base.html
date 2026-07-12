@@ -1,0 +1,87 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}BloNo Digest — Bloomington-Normal weekend plans{% endblock %}</title>
+  <meta name="description" content="Bloomington-Normal weekend plans, sent every Thursday. One simple weekly email with local events, free things to do, family picks, music, markets, and more.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,400;1,9..144,600&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #F7F1E2;
+      --paper-deep: #EFE5CC;
+      --ink: #24321F;
+      --ink-soft: #4A5843;
+      --marigold: #D97E28;
+      --barn: #B5442E;
+      --leaf: #46703F;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background-color: var(--paper);
+      color: var(--ink);
+      font-family: 'Karla', sans-serif;
+      background-image: radial-gradient(rgba(36, 50, 31, 0.07) 1px, transparent 1px);
+      background-size: 22px 22px;
+    }
+    .font-display { font-family: 'Fraunces', serif; font-optical-sizing: auto; }
+    .ticket {
+      background: #FFFDF6;
+      border: 2px dashed var(--ink);
+      box-shadow: 6px 6px 0 var(--ink);
+    }
+    .stamp {
+      border: 3px double var(--barn);
+      color: var(--barn);
+      transform: rotate(-4deg);
+      letter-spacing: 0.12em;
+    }
+    .chip {
+      border: 1.5px solid var(--ink);
+      background: #FFFDF6;
+      box-shadow: 2.5px 2.5px 0 var(--ink);
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+    .chip:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+    .btn-primary {
+      background: var(--marigold);
+      color: var(--ink);
+      border: 2px solid var(--ink);
+      box-shadow: 4px 4px 0 var(--ink);
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+    .btn-primary:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--ink); }
+    .btn-primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+    .rule-wavy {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='8' viewBox='0 0 40 8'%3E%3Cpath d='M0 4 Q5 0 10 4 T20 4 T30 4 T40 4' fill='none' stroke='%2324321F' stroke-width='1.5'/%3E%3C/svg%3E");
+      background-repeat: repeat-x;
+      height: 8px;
+    }
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    .rise { animation: rise .6s cubic-bezier(.2,.7,.3,1) both; }
+    .rise-1 { animation-delay: .05s; } .rise-2 { animation-delay: .15s; }
+    .rise-3 { animation-delay: .25s; } .rise-4 { animation-delay: .35s; }
+    @media (prefers-reduced-motion: reduce) { .rise { animation: none; } }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <header class="border-b-2 border-[color:var(--ink)] bg-[color:var(--paper)]/90 backdrop-blur">
+    <div class="max-w-4xl mx-auto px-5 py-4 flex items-center justify-between">
+      <a href="/" class="font-display font-black text-xl tracking-tight">BloNo Digest<span class="text-[color:var(--barn)]">.</span></a>
+      <span class="hidden sm:inline text-sm text-[color:var(--ink-soft)] font-medium">Bloomington–Normal, Illinois</span>
+    </div>
+  </header>
+
+  <main class="flex-1">{% block content %}{% endblock %}</main>
+
+  <footer class="border-t-2 border-[color:var(--ink)] mt-16">
+    <div class="max-w-4xl mx-auto px-5 py-8 text-sm text-[color:var(--ink-soft)] flex flex-col sm:flex-row gap-2 sm:gap-6 justify-between">
+      <p>© BloNo Digest — a weekly Bloomington-Normal events email.</p>
+      <p>Local on the surface, automated under the hood.</p>
+    </div>
+  </footer>
+</body>
+</html>

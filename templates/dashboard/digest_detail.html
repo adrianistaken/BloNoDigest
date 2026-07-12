@@ -1,0 +1,111 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{{ issue.title }} — Digest Admin{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-bold">{{ issue.title }}</h1>
+    <p class="text-sm text-slate-500">{{ issue.target_start_date }} – {{ issue.target_end_date }} · status: <b>{{ issue.status }}</b>{% if issue.sent_at %} · sent {{ issue.sent_at }}{% endif %}</p>
+  </div>
+  <div class="flex gap-2 items-center">
+    <form method="post" class="flex gap-2 items-center">
+      {% csrf_token %}
+      <input type="email" name="test_email" placeholder="test @ (default: admin)" class="border rounded px-2 py-1.5 text-sm">
+      <button name="action" value="send_test" class="bg-slate-200 text-sm px-4 py-2 rounded hover:bg-slate-300">Send test</button>
+    </form>
+    {% if issue.status != 'sent' %}
+    <form method="post" onsubmit="return confirm('Send this digest to {{ active_subscriber_count }} active subscribers?')">
+      {% csrf_token %}
+      <button name="action" value="send_final" class="bg-green-700 text-white text-sm px-4 py-2 rounded hover:bg-green-800">Send to {{ active_subscriber_count }} subscribers</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<form method="post" class="bg-white rounded shadow p-4 mt-4 grid gap-3">
+  {% csrf_token %}
+  <label class="text-sm font-bold text-slate-600">Subject line
+    <input name="subject_line" value="{{ issue.subject_line }}" class="mt-1 w-full border rounded px-2 py-1.5 font-normal">
+  </label>
+  <label class="text-sm font-bold text-slate-600">Intro text
+    <textarea name="intro_text" rows="2" class="mt-1 w-full border rounded px-2 py-1.5 font-normal">{{ issue.intro_text }}</textarea>
+  </label>
+  <div><button name="action" value="update_meta" class="bg-slate-900 text-white text-sm px-4 py-2 rounded hover:bg-slate-700">Save details</button></div>
+</form>
+
+<div class="grid lg:grid-cols-2 gap-5 mt-5 items-start">
+  <!-- Builder -->
+  <div class="space-y-5">
+    {% for section_key, label, digest_events in sections %}
+    <div class="bg-white rounded shadow">
+      <p class="px-4 py-2 font-bold bg-slate-50 border-b">{{ label }}</p>
+      <ul class="divide-y divide-slate-100">
+        {% for de in digest_events %}
+        <li class="p-3 text-sm">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <a class="font-medium text-blue-700 hover:underline" href="{% url 'dashboard:event_detail' de.event.pk %}">{{ de.event.canonical_title|truncatechars:60 }}</a>
+              <p class="text-xs text-slate-500">{{ de.event.starts_at|date:"D M j, g:i A" }} · {{ de.event.location_display }} · score {{ de.event.quality_score }}</p>
+            </div>
+            <div class="flex gap-1 shrink-0">
+              <form method="post">{% csrf_token %}
+                <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
+                <button name="action" value="move_up" class="bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded" title="Move up">↑</button>
+                <button name="action" value="move_down" class="bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded" title="Move down">↓</button>
+                <button name="action" value="remove" class="bg-red-100 hover:bg-red-200 text-red-800 px-2 py-0.5 rounded" title="Remove from email">✗</button>
+              </form>
+            </div>
+          </div>
+          <details class="mt-1">
+            <summary class="text-xs text-slate-500 cursor-pointer">blurb / section</summary>
+            <form method="post" class="mt-2 space-y-2">
+              {% csrf_token %}
+              <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
+              <textarea name="custom_blurb" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom blurb (defaults to event description)">{{ de.custom_blurb }}</textarea>
+              <div class="flex gap-2">
+                <button name="action" value="set_blurb" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Save blurb</button>
+                <select name="section" class="border rounded px-2 py-1 text-xs">
+                  {% for value, section_label in section_choices %}
+                    <option value="{{ value }}" {% if de.section == value %}selected{% endif %}>{{ section_label }}</option>
+                  {% endfor %}
+                </select>
+                <button name="action" value="set_section" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Move section</button>
+              </div>
+            </form>
+          </details>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded shadow p-6 text-center text-slate-500">
+      No events in this digest. Approve events, then regenerate a draft.
+    </div>
+    {% endfor %}
+
+    {% if removed %}
+    <div class="bg-white rounded shadow">
+      <p class="px-4 py-2 font-bold bg-slate-50 border-b text-slate-500">Removed from email</p>
+      <ul class="divide-y divide-slate-100">
+        {% for de in removed %}
+        <li class="p-3 text-sm flex justify-between items-center">
+          <span class="text-slate-500 line-through">{{ de.event.canonical_title|truncatechars:60 }}</span>
+          <form method="post">{% csrf_token %}
+            <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
+            <button name="action" value="restore" class="bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded text-xs">restore</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Email preview -->
+  <div class="bg-white rounded shadow">
+    <p class="px-4 py-2 font-bold bg-slate-50 border-b">Email preview</p>
+    <iframe src="{% url 'dashboard:digest_preview' issue.pk %}" class="w-full bg-white" style="height: 80vh" title="Digest email preview"></iframe>
+  </div>
+</div>
+{% endblock %}

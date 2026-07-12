@@ -1,0 +1,81 @@
+{% extends "dashboard/base.html" %}
+
+{% block content %}
+<div class="flex items-center justify-between">
+  <h1 class="text-2xl font-bold">{{ region.name }}</h1>
+  <button type="button" onclick="document.getElementById('workflow-guide').classList.toggle('hidden')"
+          class="text-sm bg-slate-200 hover:bg-slate-300 px-3 py-1.5 rounded">📋 Weekly workflow</button>
+</div>
+
+<!-- Weekly workflow cheat sheet -->
+<div id="workflow-guide" class="bg-white rounded shadow border-l-4 border-slate-900 p-5 mt-4">
+  <p class="font-bold text-lg">Your weekly ritual — do this before each Thursday</p>
+  <p class="text-sm text-slate-500 mt-1">The robot collects events automatically; your job is to review the good ones and hit send. Roughly 30–60 minutes.</p>
+  <ol class="mt-4 grid gap-3 sm:grid-cols-5">
+    <li class="bg-slate-50 rounded p-3">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-sm">1</span>
+      <p class="font-bold mt-2 text-sm">Collect</p>
+      <p class="text-xs text-slate-500 mt-1">On <a class="text-blue-700 underline" href="{% url 'dashboard:sources' %}">Sources</a>, click “Run import” on each source (or let the nightly job do it).</p>
+    </li>
+    <li class="bg-slate-50 rounded p-3">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-sm">2</span>
+      <p class="font-bold mt-2 text-sm">Review</p>
+      <p class="text-xs text-slate-500 mt-1">On <a class="text-blue-700 underline" href="{% url 'dashboard:events' %}?filter=this_weekend&status=needs_review">Events → This weekend</a>, approve (✓) the good ones, reject (✗) junk.</p>
+    </li>
+    <li class="bg-slate-50 rounded p-3">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-sm">3</span>
+      <p class="font-bold mt-2 text-sm">Generate</p>
+      <p class="text-xs text-slate-500 mt-1">On <a class="text-blue-700 underline" href="{% url 'dashboard:digests' %}">Digests</a>, click “Generate draft for upcoming weekend.”</p>
+    </li>
+    <li class="bg-slate-50 rounded p-3">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-sm">4</span>
+      <p class="font-bold mt-2 text-sm">Polish</p>
+      <p class="text-xs text-slate-500 mt-1">In the draft, reorder, move sections, edit blurbs, or remove events. Check the live preview.</p>
+    </li>
+    <li class="bg-slate-50 rounded p-3">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-700 text-white font-bold text-sm">5</span>
+      <p class="font-bold mt-2 text-sm">Send</p>
+      <p class="text-xs text-slate-500 mt-1">Click “Send test” to email yourself first, then “Send to subscribers.”</p>
+    </li>
+  </ol>
+</div>
+
+<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-5">
+  <a href="{% url 'dashboard:subscribers' %}" class="bg-white rounded shadow p-4 hover:shadow-md">
+    <p class="text-3xl font-bold">{{ subscriber_count }}</p>
+    <p class="text-sm text-slate-500">active subscribers</p>
+  </a>
+  <a href="{% url 'dashboard:events' %}?status=needs_review" class="bg-white rounded shadow p-4 hover:shadow-md">
+    <p class="text-3xl font-bold {% if needs_review_count %}text-amber-600{% endif %}">{{ needs_review_count }}</p>
+    <p class="text-sm text-slate-500">events needing review</p>
+  </a>
+  <a href="{% url 'dashboard:events' %}?status=approved" class="bg-white rounded shadow p-4 hover:shadow-md">
+    <p class="text-3xl font-bold text-green-700">{{ approved_count }}</p>
+    <p class="text-sm text-slate-500">approved events</p>
+  </a>
+  <a href="{% url 'dashboard:sources' %}" class="bg-white rounded shadow p-4 hover:shadow-md">
+    <p class="text-3xl font-bold {% if broken_sources %}text-red-600{% endif %}">{{ broken_sources|length }}<span class="text-lg text-slate-400">/{{ source_count }}</span></p>
+    <p class="text-sm text-slate-500">broken sources</p>
+  </a>
+</div>
+
+{% if broken_sources %}
+<div class="bg-red-50 border border-red-300 rounded p-4 mt-5">
+  <p class="font-bold text-red-800">Broken sources</p>
+  <ul class="mt-1 text-sm text-red-800 list-disc ml-5">
+    {% for source in broken_sources %}
+      <li>{{ source.name }} — {{ source.last_error_message|truncatechars:120 }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="bg-white rounded shadow p-4 mt-5 text-sm space-y-1">
+  <p><span class="font-bold">Last import run:</span>
+    {% if last_run %}{{ last_run.source.name }} — {{ last_run.status }} at {{ last_run.started_at }}{% else %}never — run <code class="bg-slate-100 px-1">python manage.py import_events</code>{% endif %}
+  </p>
+  <p><span class="font-bold">Latest digest:</span>
+    {% if latest_digest %}<a class="text-blue-700 underline" href="{% url 'dashboard:digest_detail' latest_digest.pk %}">{{ latest_digest.title }}</a> ({{ latest_digest.status }}){% else %}none yet{% endif %}
+  </p>
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Digests — Digest Admin{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between">
+  <h1 class="text-2xl font-bold">Digest issues</h1>
+  <form method="post">
+    {% csrf_token %}
+    <button class="bg-slate-900 text-white text-sm px-4 py-2 rounded hover:bg-slate-700">Generate draft for upcoming weekend</button>
+  </form>
+</div>
+
+<div class="bg-white rounded shadow mt-4 overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-left text-slate-500">
+      <tr>
+        <th class="px-4 py-2">Title</th>
+        <th class="px-4 py-2">Weekend</th>
+        <th class="px-4 py-2">Status</th>
+        <th class="px-4 py-2">Events</th>
+        <th class="px-4 py-2">Sent</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for issue in issues %}
+      <tr>
+        <td class="px-4 py-2"><a class="font-medium text-blue-700 hover:underline" href="{% url 'dashboard:digest_detail' issue.pk %}">{{ issue.title }}</a></td>
+        <td class="px-4 py-2">{{ issue.target_start_date }} – {{ issue.target_end_date }}</td>
+        <td class="px-4 py-2">
+          {% if issue.status == 'sent' %}<span class="text-green-700 font-bold">sent</span>
+          {% else %}<span class="text-amber-600">{{ issue.status }}</span>{% endif %}
+        </td>
+        <td class="px-4 py-2">{{ issue.digest_events.count }}</td>
+        <td class="px-4 py-2 text-slate-500">{{ issue.sent_at|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">No digests yet — approve some events, then generate a draft.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

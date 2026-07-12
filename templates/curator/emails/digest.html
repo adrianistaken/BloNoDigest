@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ issue.subject_line }}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#F7F1E2; font-family: Georgia, 'Times New Roman', serif; color:#24321F;">
+  <div style="max-width:600px; margin:0 auto; padding:24px 16px;">
+
+    <div style="text-align:center; padding-bottom:16px;">
+      <p style="font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#B5442E; margin:0;">BloNo Digest</p>
+      <h1 style="font-size:26px; margin:8px 0 0;">{{ issue.title }}</h1>
+    </div>
+
+    {% if issue.intro_text %}
+    <p style="font-size:16px; line-height:1.5; margin:0 0 20px;">{{ issue.intro_text }}</p>
+    {% endif %}
+
+    {% for section_key, label, digest_events in sections %}
+    <div style="margin-top:28px;">
+      <h2 style="font-size:15px; text-transform:uppercase; letter-spacing:1.5px; color:#46703F; border-bottom:2px solid #24321F; padding-bottom:6px; margin:0 0 4px;">{{ label }}</h2>
+      {% for de in digest_events %}
+      <div style="padding:12px 0; border-bottom:1px dashed #C9BFA5;">
+        {% if de.event.image_url %}
+        <img src="{{ de.event.image_url }}" alt="" width="96"
+             style="float:right; width:96px; height:72px; object-fit:cover; border-radius:6px; margin:2px 0 6px 14px; border:1px solid #C9BFA5;">
+        {% endif %}
+        <p style="font-size:16px; font-weight:bold; margin:0;">
+          {% if de.event.source_url %}<a href="{{ de.event.source_url }}" style="color:#24321F; text-decoration:none;">{{ de.event.canonical_title }}</a>{% else %}{{ de.event.canonical_title }}{% endif %}
+        </p>
+        <p style="font-size:13px; color:#4A5843; margin:3px 0 0;">
+          {{ de.event.starts_at|date:"D, M j" }}{% if de.event.time_is_known %} · {{ de.event.starts_at|date:"g:i A" }}{% endif %} · {{ de.event.location_display }}{% if de.event.price_text %} · <span style="color:#46703F; font-weight:bold;">{{ de.event.price_text }}</span>{% endif %}
+        </p>
+        {% if de.blurb %}
+        <p style="font-size:14px; line-height:1.45; color:#3A4636; margin:6px 0 0;">
+          {{ de.blurb }}{% if de.event.source_url %} <a href="{{ de.event.source_url }}" style="color:#B5442E; font-weight:bold; text-decoration:none;">Details&nbsp;→</a>{% endif %}
+        </p>
+        {% elif de.event.source_url %}
+        <p style="margin:6px 0 0;"><a href="{{ de.event.source_url }}" style="font-size:13px; color:#B5442E; font-weight:bold; text-decoration:none;">Details →</a></p>
+        {% endif %}
+        <div style="clear:both;"></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    <div style="margin-top:36px; padding-top:16px; border-top:2px solid #24321F; text-align:center;">
+      <p style="font-size:13px; color:#4A5843; line-height:1.6;">
+        You're getting this because you subscribed to the Bloomington-Normal weekend digest at
+        <a href="{{ site_base_url }}" style="color:#B5442E;">{{ site_base_url }}</a>.<br>
+        Sent every Thursday. Focused on Bloomington-Normal and nearby areas.<br>
+        {% if postal_address %}BloNo Digest · {{ postal_address }}<br>{% endif %}
+        <a href="{{ unsubscribe_url }}" style="color:#4A5843;">Unsubscribe</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

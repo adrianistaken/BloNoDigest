@@ -1,0 +1,105 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Events — Digest Admin{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold">Events</h1>
+
+<form method="get" class="bg-white rounded shadow p-4 mt-4 flex flex-wrap gap-3 items-end text-sm">
+  <label class="block">
+    <span class="text-slate-500">Status</span>
+    <select name="status" class="block border rounded px-2 py-1.5 mt-1">
+      <option value="">all</option>
+      {% for value, label in statuses %}
+        <option value="{{ value }}" {% if current.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="block">
+    <span class="text-slate-500">Quick filter</span>
+    <select name="filter" class="block border rounded px-2 py-1.5 mt-1">
+      <option value="">none</option>
+      <option value="upcoming" {% if current.filter == 'upcoming' %}selected{% endif %}>upcoming</option>
+      <option value="this_weekend" {% if current.filter == 'this_weekend' %}selected{% endif %}>this weekend</option>
+      <option value="next_week" {% if current.filter == 'next_week' %}selected{% endif %}>next week</option>
+      <option value="duplicates" {% if current.filter == 'duplicates' %}selected{% endif %}>duplicates</option>
+      <option value="missing_location" {% if current.filter == 'missing_location' %}selected{% endif %}>missing location</option>
+      <option value="missing_time" {% if current.filter == 'missing_time' %}selected{% endif %}>missing time</option>
+    </select>
+  </label>
+  <label class="block">
+    <span class="text-slate-500">Source</span>
+    <select name="source" class="block border rounded px-2 py-1.5 mt-1">
+      <option value="">all</option>
+      {% for source in sources %}
+        <option value="{{ source.slug }}" {% if current.source == source.slug %}selected{% endif %}>{{ source.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button class="bg-slate-900 text-white px-4 py-2 rounded">Filter</button>
+  <a href="{% url 'dashboard:events' %}" class="text-slate-500 underline">reset</a>
+</form>
+
+<div class="bg-white rounded shadow mt-4 overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-left text-slate-500">
+      <tr>
+        <th class="px-4 py-2">Event</th>
+        <th class="px-4 py-2">When</th>
+        <th class="px-4 py-2">Where</th>
+        <th class="px-4 py-2">Source</th>
+        <th class="px-4 py-2">Cats</th>
+        <th class="px-4 py-2">Score</th>
+        <th class="px-4 py-2">Status</th>
+        <th class="px-4 py-2">Warnings</th>
+        <th class="px-4 py-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for event in page %}
+      <tr class="{% if event.duplicate_of %}bg-amber-50{% endif %}">
+        <td class="px-4 py-2 max-w-xs">
+          <a href="{% url 'dashboard:event_detail' event.pk %}" class="font-medium text-blue-700 hover:underline">{{ event.canonical_title|truncatechars:70 }}</a>
+          {% if event.duplicate_of %}
+            <p class="text-xs text-amber-700 font-bold">possible dup of <a class="underline" href="{% url 'dashboard:event_detail' event.duplicate_of.pk %}">#{{ event.duplicate_of.pk }}</a></p>
+          {% endif %}
+        </td>
+        <td class="px-4 py-2 whitespace-nowrap">{{ event.starts_at|date:"D M j" }}{% if event.time_is_known %} {{ event.starts_at|date:"g:i A" }}{% endif %}</td>
+        <td class="px-4 py-2">{{ event.location_display|truncatechars:35 }}</td>
+        <td class="px-4 py-2 text-slate-500">{{ event.primary_source.name|default:"—"|truncatechars:25 }}</td>
+        <td class="px-4 py-2 text-xs text-slate-500">{{ event.categories|join:", " }}</td>
+        <td class="px-4 py-2 font-mono">{{ event.quality_score }}</td>
+        <td class="px-4 py-2">
+          {% if event.status == 'approved' %}<span class="text-green-700 font-bold">approved</span>
+          {% elif event.status == 'rejected' %}<span class="text-red-700">rejected</span>
+          {% elif event.status == 'needs_review' %}<span class="text-amber-600 font-bold">review</span>
+          {% else %}<span class="text-slate-500">{{ event.status }}</span>{% endif %}
+        </td>
+        <td class="px-4 py-2 text-xs text-red-600">{{ event.missing_data_warnings|join:", " }}</td>
+        <td class="px-4 py-2">
+          <div class="flex gap-1">
+            <form method="post" action="{% url 'dashboard:event_action' event.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button name="action" value="approve" class="text-xs bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded">✓</button>
+              <button name="action" value="reject" class="text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded">✗</button>
+            </form>
+            {% if event.source_url %}<a href="{{ event.source_url }}" target="_blank" rel="noopener" class="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded">src</a>{% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="9" class="px-4 py-6 text-center text-slate-500">No events match.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if page.has_other_pages %}
+<div class="mt-4 flex gap-3 text-sm">
+  {% if page.has_previous %}<a class="underline text-blue-700" href="?{{ request.GET.urlencode }}&page={{ page.previous_page_number }}">← prev</a>{% endif %}
+  <span>page {{ page.number }} of {{ page.paginator.num_pages }} ({{ page.paginator.count }} events)</span>
+  {% if page.has_next %}<a class="underline text-blue-700" href="?{{ request.GET.urlencode }}&page={{ page.next_page_number }}">next →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
