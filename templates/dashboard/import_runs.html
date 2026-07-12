@@ -4,19 +4,26 @@
 
 {% block content %}
 <h1 class="text-2xl font-bold">Import runs</h1>
+<p class="text-sm text-slate-500 mt-1">One row per fetch attempt, per source. Hover a <span class="underline decoration-dotted">dotted</span> column name for what it means. Found = Created + Updated + Rejected.</p>
 
 <div class="bg-white rounded shadow mt-4 overflow-x-auto">
   <table class="w-full text-sm">
     <thead class="bg-slate-50 text-left text-slate-500">
       <tr>
         <th class="px-4 py-2">Source</th>
-        <th class="px-4 py-2">Status</th>
+        <th class="px-4 py-2 cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2"
+            title="How the fetch went. success = clean run. partial_success = source reached, but some individual events errored. failed = couldn't fetch the source at all — see Error.">Status</th>
         <th class="px-4 py-2">Started</th>
-        <th class="px-4 py-2">Found</th>
-        <th class="px-4 py-2">Created</th>
-        <th class="px-4 py-2">Updated</th>
-        <th class="px-4 py-2">Rejected</th>
-        <th class="px-4 py-2">Error</th>
+        <th class="px-4 py-2 cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2"
+            title="Total events the source listed during this run — the raw haul before any judgment.">Found</th>
+        <th class="px-4 py-2 cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2"
+            title="Brand new to us — first time ever seen. These land in your review queue. A first run is mostly Created; after that, expect a small trickle.">Created</th>
+        <th class="px-4 py-2 cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2"
+            title="Events we already knew, re-confirmed and refreshed (details re-synced, or merged as a duplicate from another source). Your approve/reject decisions are never changed. Steady-state runs are mostly Updated.">Updated</th>
+        <th class="px-4 py-2 cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2"
+            title="Dropped before reaching your queue: missing location, no usable date, or already over. Reasons are logged on each raw record.">Rejected</th>
+        <th class="px-4 py-2 cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2"
+            title="Filled only when the whole source failed (site down, blocking us, format changed). Red status + text here = this source needs attention.">Error</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-slate-100">
