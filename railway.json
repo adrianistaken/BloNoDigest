@@ -6,8 +6,6 @@
   },
   "deploy": {
     "startCommand": "python manage.py migrate --noinput && gunicorn config.wsgi --bind 0.0.0.0:$PORT --log-file -",
-    "healthcheckPath": "/health/",
-    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE"
   }
 }
