@@ -103,6 +103,10 @@ LOGIN_URL = "/django-admin/login/"
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = True
+    # Platform healthchecks hit the container over plain HTTP with their own
+    # host header; don't redirect or reject them.
+    SECURE_REDIRECT_EXEMPT = [r"^health/$"]
+    ALLOWED_HOSTS.append("healthcheck.railway.app")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
