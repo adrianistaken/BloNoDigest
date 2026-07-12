@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
+from .automations import get_automations
 from .digests import generate_digest_issue, upcoming_weekend
 from .emails import render_digest, send_digest, send_test_email
 from .forms import EventForm
@@ -38,6 +39,13 @@ def home(request):
     region = _default_region()
     sources = region.sources.all()
     last_run = ImportRun.objects.filter(source__region=region).first()
+    latest_digest = region.digest_issues.first()
+    automations = get_automations()
+    for automation in automations:
+        if "import" in automation["file"]:
+            automation["last_evidence"] = last_run.started_at if last_run else None
+        else:
+            automation["last_evidence"] = latest_digest.generated_at if latest_digest else None
     context = {
         "region": region,
         "subscriber_count": region.subscribers.filter(status=Subscriber.Status.ACTIVE).count(),
@@ -46,7 +54,8 @@ def home(request):
         "broken_sources": [s for s in sources if s.is_broken],
         "source_count": sources.count(),
         "last_run": last_run,
-        "latest_digest": region.digest_issues.first(),
+        "latest_digest": latest_digest,
+        "automations": automations,
     }
     return render(request, "dashboard/home.html", context)
 

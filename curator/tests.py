@@ -478,6 +478,28 @@ class DigestTests(TestCase):
         self.assertIn("unsubscribe", mail.outbox[0].alternatives[0][0].lower())
 
 
+class AutomationPanelTests(TestCase):
+    def test_humanize_cron(self):
+        from .automations import humanize_cron
+
+        daily = humanize_cron("0 9 * * *")
+        self.assertIn("every day", daily)
+        self.assertIn("09:00 UTC", daily)
+        weekly = humanize_cron("0 11 * * 4")
+        self.assertIn("every Thursday", weekly)
+        self.assertIn("11:00 UTC", weekly)
+        self.assertEqual(humanize_cron("bad input"), "cron: bad input (UTC)")
+
+    def test_home_shows_automation_schedules(self):
+        make_region()
+        User.objects.create_superuser("admin", "admin@example.com", "pass12345")
+        self.client.login(username="admin", password="pass12345")
+        response = self.client.get("/admin-dashboard/")
+        self.assertContains(response, "Automations")
+        self.assertContains(response, "Nightly event import")
+        self.assertContains(response, "every Thursday")
+
+
 class DashboardAuthTests(TestCase):
     def test_dashboard_requires_staff(self):
         make_region()
