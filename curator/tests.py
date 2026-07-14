@@ -366,6 +366,7 @@ class ConnectorExtractionTests(TestCase):
         self.assertIn("Live music", parsed["description"])
 
 
+@override_settings(EMAIL_SEND_ASYNC=False)  # synchronous sends so mail.outbox is assertable
 class SignupTests(TestCase):
     def setUp(self):
         self.region = make_region()

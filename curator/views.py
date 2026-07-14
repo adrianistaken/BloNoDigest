@@ -1,10 +1,11 @@
 """Public views: landing, signup, thanks, unsubscribe, health, hidden preview."""
 
 import logging
+import threading
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db import connection
+from django.db import IntegrityError, connection
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -40,18 +41,28 @@ def landing(request):
             cache.set(ip_key, attempts + 1, 3600)
             region = Region.objects.get(slug=settings.DEFAULT_REGION_SLUG)
             email = form.cleaned_data["email"].lower().strip()
-            subscriber, created = Subscriber.objects.get_or_create(
-                region=region,
-                email=email,
-                defaults={"source": form.cleaned_data.get("source", "")[:200]},
-            )
+            try:
+                subscriber, created = Subscriber.objects.get_or_create(
+                    region=region,
+                    email=email,
+                    defaults={"source": form.cleaned_data.get("source", "")[:200]},
+                )
+            except IntegrityError:  # double-click race: another request created it
+                subscriber, created = Subscriber.objects.get(region=region, email=email), False
             if not created and subscriber.status != Subscriber.Status.ACTIVE:
                 subscriber.status = Subscriber.Status.ACTIVE
                 subscriber.subscribed_at = timezone.now()
                 subscriber.unsubscribed_at = None
                 subscriber.save(update_fields=["status", "subscribed_at", "unsubscribed_at", "updated_at"])
             if created:
-                send_welcome_email(subscriber)
+                # Fire-and-forget: the visitor's page load never waits on a
+                # mail server (send_welcome_email logs its own failures).
+                if settings.EMAIL_SEND_ASYNC:
+                    threading.Thread(
+                        target=send_welcome_email, args=(subscriber,), daemon=True
+                    ).start()
+                else:
+                    send_welcome_email(subscriber)
             return redirect("thanks")
 
     return render(request, "curator/landing.html", {"form": form})

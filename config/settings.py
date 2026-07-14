@@ -113,17 +113,26 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
 # --- Email ---------------------------------------------------------------
-# Dev default prints emails to the console. In production point these at any
-# SMTP provider (Resend, Postmark, etc.) via env vars.
-if os.environ.get("EMAIL_HOST"):
+# A Resend key ("re_...") uses their HTTPS API — faster than SMTP and immune
+# to cloud hosts throttling outbound mail ports. EMAIL_HOST enables generic
+# SMTP for other providers. Dev default prints emails to the console.
+EMAIL_PROVIDER_API_KEY = os.environ.get("EMAIL_PROVIDER_API_KEY", "")
+if EMAIL_PROVIDER_API_KEY.startswith("re_"):
+    EMAIL_BACKEND = "curator.email_backend.ResendAPIBackend"
+elif os.environ.get("EMAIL_HOST"):
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_HOST = os.environ["EMAIL_HOST"]
     EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
     EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
-    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_PROVIDER_API_KEY", "")
+    EMAIL_HOST_PASSWORD = EMAIL_PROVIDER_API_KEY
     EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() in ("1", "true", "yes")
+    EMAIL_TIMEOUT = 15  # a hung mail server must never hold a request hostage
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# Welcome emails send in a background thread so signup responds instantly
+# (tests override this to keep sends synchronous and assertable).
+EMAIL_SEND_ASYNC = True
 
 EMAIL_FROM_ADDRESS = os.environ.get(
     "EMAIL_FROM_ADDRESS", "BloNo Digest <digest@example.com>"
