@@ -143,6 +143,7 @@ class DedupeTests(TestCase):
             "price_min": 0,
             "price_max": None,
             "source_url": f"https://{source.slug}.example.com/market",
+            "image_url": "",
             "primary_source": source,
             "tags": [],
         }

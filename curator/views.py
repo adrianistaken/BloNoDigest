@@ -13,7 +13,7 @@ from django.views.decorators.http import require_http_methods
 
 from .emails import send_welcome_email
 from .forms import SignupForm
-from .models import DigestIssue, Region, Subscriber
+from .models import IMAGE_SECTIONS, DigestIssue, Region, Subscriber
 
 logger = logging.getLogger("curator.views")
 
@@ -92,8 +92,10 @@ def preview_latest(request):
         {
             "issue": issue,
             "sections": issue.sections_with_events(),
+            "image_sections": IMAGE_SECTIONS,
             "unsubscribe_url": "#",
             "site_base_url": settings.SITE_BASE_URL,
+            "postal_address": settings.EMAIL_POSTAL_ADDRESS,
         },
     )
 

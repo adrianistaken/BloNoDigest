@@ -88,10 +88,7 @@ def generate_digest_issue(region_slug, start_date=None):
         region=region,
         title=f"{region.name} Weekend Digest: {friday:%b %-d}–{sunday:%-d}",
         subject_line=f"Bloomington-Normal weekend events: {date_range}",
-        intro_text=(
-            "Here's what's happening around Bloomington-Normal this weekend — "
-            "picked so you don't have to dig through a dozen calendars."
-        ),
+        intro_text="Here are a few things worth leaving the house for.",
         status=DigestIssue.Status.DRAFT,
         target_start_date=friday,
         target_end_date=sunday,

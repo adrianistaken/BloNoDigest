@@ -4,83 +4,145 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}BloNo Digest — Bloomington-Normal weekend plans{% endblock %}</title>
-  <meta name="description" content="Bloomington-Normal weekend plans, sent every Thursday. One simple weekly email with local events, free things to do, family picks, music, markets, and more.">
+  <meta name="description" content="Bloomington-Normal weekend plans, sent every Thursday. A friendly weekly guide to local events, family activities, date ideas, music, markets, food, and nearby things worth doing.">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,400;1,9..144,600&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <style>
     :root {
-      --paper: #F7F1E2;
-      --paper-deep: #EFE5CC;
-      --ink: #24321F;
-      --ink-soft: #4A5843;
-      --marigold: #D97E28;
-      --barn: #B5442E;
-      --leaf: #46703F;
+      /* Design tokens — Visual Design Spec §4 */
+      --cream: #FAF5E9;        /* warm cream: primary background */
+      --forest: #294C3A;       /* deep forest green: brand anchor */
+      --forest-deep: #1E3B2C;  /* button hover */
+      --terracotta: #C96F4A;   /* secondary accent */
+      --terracotta-deep: #B15D3A;
+      --sage: #A8B89A;         /* calm panels, borders */
+      --mustard: #D5A640;      /* sparing highlights, Top Pick labels */
+      --dustblue: #718C9E;     /* optional: arts/music/evening */
+      --charcoal: #2E302C;     /* body text, never pure black */
+      --stone: #6F6A60;        /* secondary text, metadata */
+      --linen: #EEE5D5;        /* borders, dividers, card backgrounds */
     }
     html { scroll-behavior: smooth; }
     body {
-      background-color: var(--paper);
-      color: var(--ink);
-      font-family: 'Karla', sans-serif;
-      background-image: radial-gradient(rgba(36, 50, 31, 0.07) 1px, transparent 1px);
-      background-size: 22px 22px;
+      background-color: var(--cream);
+      color: var(--charcoal);
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 17px;
     }
-    .font-display { font-family: 'Fraunces', serif; font-optical-sizing: auto; }
-    .ticket {
-      background: #FFFDF6;
-      border: 2px dashed var(--ink);
-      box-shadow: 6px 6px 0 var(--ink);
+    .font-display { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; }
+    h1, h2, h3 { color: var(--forest); }
+
+    /* Soft card — spec §10: rounded 12–18px, light shadow, thin warm border */
+    .card {
+      background: #FFFFFF;
+      border: 1px solid var(--linen);
+      border-radius: 16px;
+      box-shadow: 0 2px 10px rgba(46, 48, 44, 0.06);
     }
-    .stamp {
-      border: 3px double var(--barn);
-      color: var(--barn);
-      transform: rotate(-4deg);
-      letter-spacing: 0.12em;
+    .card-cream { background: #FFFDF6; }
+
+    /* Stitched separator — handcrafted accent, not decoration overload */
+    .rule-stitch {
+      border: none;
+      border-top: 2px dashed var(--sage);
+      opacity: .7;
     }
-    .chip {
-      border: 1.5px solid var(--ink);
-      background: #FFFDF6;
-      box-shadow: 2.5px 2.5px 0 var(--ink);
-      transition: transform .12s ease, box-shadow .12s ease;
+
+    /* Market-signage label (spec §9: rounded labels) */
+    .signage {
+      display: inline-block;
+      background: var(--mustard);
+      color: var(--charcoal);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
     }
-    .chip:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+
     .btn-primary {
-      background: var(--marigold);
-      color: var(--ink);
-      border: 2px solid var(--ink);
-      box-shadow: 4px 4px 0 var(--ink);
-      transition: transform .12s ease, box-shadow .12s ease;
+      background: var(--forest);
+      color: var(--cream);
+      border-radius: 12px;
+      font-weight: 600;
+      transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
+      box-shadow: 0 2px 6px rgba(41, 76, 58, 0.25);
     }
-    .btn-primary:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--ink); }
-    .btn-primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
-    .rule-wavy {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='8' viewBox='0 0 40 8'%3E%3Cpath d='M0 4 Q5 0 10 4 T20 4 T30 4 T40 4' fill='none' stroke='%2324321F' stroke-width='1.5'/%3E%3C/svg%3E");
-      background-repeat: repeat-x;
-      height: 8px;
+    .btn-primary:hover { background: var(--forest-deep); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(41, 76, 58, 0.3); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-secondary {
+      background: var(--terracotta);
+      color: #fff;
+      border-radius: 12px;
+      font-weight: 600;
+      transition: background .15s ease;
     }
-    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-    .rise { animation: rise .6s cubic-bezier(.2,.7,.3,1) both; }
-    .rise-1 { animation-delay: .05s; } .rise-2 { animation-delay: .15s; }
-    .rise-3 { animation-delay: .25s; } .rise-4 { animation-delay: .35s; }
+    .btn-secondary:hover { background: var(--terracotta-deep); }
+
+    /* Category tag — fully rounded pill on sage/linen */
+    .chip {
+      background: #FFFFFF;
+      border: 1px solid var(--sage);
+      border-radius: 999px;
+      color: var(--charcoal);
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .chip:hover { background: var(--linen); border-color: var(--forest); }
+
+    .input-field {
+      background: #fff;
+      border: 1px solid var(--linen);
+      border-radius: 12px;
+      color: var(--charcoal);
+    }
+    .input-field:focus { outline: 2px solid var(--forest); outline-offset: 1px; border-color: var(--forest); }
+    .input-field::placeholder { color: var(--stone); opacity: .7; }
+
+    /* Legacy aliases used by inner pages */
+    .ticket { background: #FFFFFF; border: 1px solid var(--linen); border-radius: 16px; box-shadow: 0 2px 10px rgba(46,48,44,.06); }
+    .stamp {
+      display: inline-block; background: var(--mustard); color: var(--charcoal);
+      border-radius: 999px; padding: 4px 14px; font-size: 12px; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase; border: none; transform: none;
+    }
+
+    /* Rough painted underline — handmade energy, small dose */
+    .paint-underline {
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'><path d='M5 12 C 40 5 82 15 122 9 C 152 5 182 13 195 8' stroke='%23C96F4A' stroke-width='7' fill='none' stroke-linecap='round' opacity='.7'/></svg>");
+      background-repeat: no-repeat;
+      background-position: 0 96%;
+      background-size: 100% 0.16em;
+      padding-bottom: 0.1em;
+    }
+
+    @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    .rise { animation: rise .55s cubic-bezier(.2,.7,.3,1) both; }
+    .rise-1 { animation-delay: .05s; } .rise-2 { animation-delay: .14s; }
+    .rise-3 { animation-delay: .23s; } .rise-4 { animation-delay: .32s; }
     @media (prefers-reduced-motion: reduce) { .rise { animation: none; } }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
-  <header class="border-b-2 border-[color:var(--ink)] bg-[color:var(--paper)]/90 backdrop-blur">
-    <div class="max-w-4xl mx-auto px-5 py-4 flex items-center justify-between">
-      <a href="/" class="font-display font-black text-xl tracking-tight">BloNo Digest<span class="text-[color:var(--barn)]">.</span></a>
-      <span class="hidden sm:inline text-sm text-[color:var(--ink-soft)] font-medium">Bloomington–Normal, Illinois</span>
+  <header class="border-b border-[color:var(--linen)]">
+    <div class="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
+      <a href="/" class="font-display font-bold text-xl tracking-tight text-[color:var(--forest)]">
+        BloNo Digest<span class="text-[color:var(--terracotta)]">.</span>
+      </a>
+      <span class="hidden sm:inline text-sm text-[color:var(--stone)]">Bloomington–Normal, Illinois</span>
     </div>
   </header>
 
   <main class="flex-1">{% block content %}{% endblock %}</main>
 
-  <footer class="border-t-2 border-[color:var(--ink)] mt-16">
-    <div class="max-w-4xl mx-auto px-5 py-8 text-sm text-[color:var(--ink-soft)] flex flex-col sm:flex-row gap-2 sm:gap-6 justify-between">
-      <p>© BloNo Digest — a weekly Bloomington-Normal events email.</p>
-      <p>Local on the surface, automated under the hood.</p>
+  <footer class="border-t border-[color:var(--linen)] mt-16 bg-[color:var(--linen)]/40">
+    <div class="max-w-5xl mx-auto px-5 py-8 text-sm text-[color:var(--stone)] flex flex-col sm:flex-row gap-2 sm:gap-6 justify-between">
+      <p>© BloNo Digest — made in Bloomington-Normal.</p>
+      <p><a href="mailto:hello@blonodigest.com?subject=Hello" class="underline decoration-[color:var(--sage)] underline-offset-2 hover:text-[color:var(--forest)]">Suggest an event or say hello</a></p>
+      <p>We only use your email to send the digest. Unsubscribe anytime.</p>
     </div>
   </footer>
 </body>

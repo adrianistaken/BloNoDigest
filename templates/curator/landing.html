@@ -1,139 +1,219 @@
 {% extends "curator/public_base.html" %}
 
 {% block content %}
-<!-- Hero -->
-<section class="max-w-4xl mx-auto px-5 pt-14 pb-10">
-  <div class="rise rise-1 flex justify-start">
-    <span class="stamp inline-block px-3 py-1 text-xs font-bold uppercase">Sent every Thursday</span>
-  </div>
-  <h1 class="rise rise-2 font-display font-black text-4xl sm:text-6xl leading-[1.05] mt-5">
-    Bloomington-Normal weekend&nbsp;plans,<br>
-    <em class="text-[color:var(--barn)]">without checking 12 calendars.</em>
-  </h1>
-  <p class="rise rise-3 mt-6 text-lg sm:text-xl text-[color:var(--ink-soft)] max-w-2xl">
-    Stop digging through city calendars, library pages, and venue websites.
-    Get one simple weekly email with local events, family-friendly picks, free things to do,
-    date ideas, markets, music, food, and more.
-  </p>
+<!-- Hero: headline left, signup right on desktop; stacked on mobile -->
+<section class="max-w-5xl mx-auto px-5 pt-12 pb-4 lg:grid lg:grid-cols-[7fr_5fr] lg:gap-12 lg:items-center">
+  <div>
+    <!-- pennant garland: spans the full headline width, flags on the string -->
+    <svg class="rise rise-1 w-full h-auto" viewBox="0 0 640 38" fill="none" aria-hidden="true" preserveAspectRatio="xMinYMid meet">
+      <path d="M31 10 L49 10 L40 27 Z" fill="var(--terracotta)" opacity=".9"/>
+      <path d="M101 14 L119 14 L110 31 Z" fill="var(--mustard)" opacity=".9"/>
+      <path d="M171 10 L189 10 L180 27 Z" fill="var(--forest)" opacity=".85"/>
+      <path d="M241 14 L259 14 L250 31 Z" fill="var(--dustblue)" opacity=".85"/>
+      <path d="M311 10 L329 10 L320 27 Z" fill="var(--terracotta)" opacity=".9"/>
+      <path d="M381 14 L399 14 L390 31 Z" fill="var(--sage)"/>
+      <path d="M451 10 L469 10 L460 27 Z" fill="var(--mustard)" opacity=".9"/>
+      <path d="M521 14 L539 14 L530 31 Z" fill="var(--forest)" opacity=".85"/>
+      <path d="M591 10 L609 10 L600 27 Z" fill="var(--terracotta)" opacity=".9"/>
+      <path d="M4 8 L 40 10 L 110 14 L 180 10 L 250 14 L 320 10 L 390 14 L 460 10 L 530 14 L 600 10 L 636 12"
+            stroke="var(--sage)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
 
-  <!-- Signup ticket -->
-  <div id="signup" class="rise rise-4 ticket rounded-lg mt-10 p-6 sm:p-8 max-w-xl">
-    <p class="font-display font-semibold text-lg">Get the Thursday event digest</p>
-    <form method="post" action="/#signup" class="mt-4 flex flex-col sm:flex-row gap-3" novalidate>
-      {% csrf_token %}
-      <label for="email" class="sr-only">Email address</label>
-      <input type="email" name="email" id="email" required placeholder="you@example.com"
-             value="{{ form.email.value|default:'' }}"
-             class="flex-1 px-4 py-3 rounded-md border-2 border-[color:var(--ink)] bg-white placeholder:text-[color:var(--ink-soft)]/60 focus:outline-none focus:ring-2 focus:ring-[color:var(--marigold)]">
-      <input type="text" name="website" value="" tabindex="-1" autocomplete="off" aria-hidden="true" class="hidden">
-      <input type="hidden" name="source" value="{{ request.GET.utm_source|default:'landing' }}">
-      <button type="submit" class="btn-primary px-6 py-3 rounded-md font-bold whitespace-nowrap">
-        Get the digest
-      </button>
-    </form>
-    {% if form.email.errors %}
-      <p class="mt-3 text-sm font-bold text-[color:var(--barn)]">{{ form.email.errors.0 }}</p>
-    {% endif %}
-    <p class="mt-3 text-sm text-[color:var(--ink-soft)]">Free. One email a week. Unsubscribe any time.</p>
-  </div>
-</section>
-
-<div class="rule-wavy max-w-4xl mx-auto"></div>
-
-<!-- What you'll get -->
-<section class="max-w-4xl mx-auto px-5 py-12">
-  <h2 class="font-display font-black text-3xl">What lands in your inbox</h2>
-  <p class="mt-2 text-[color:var(--ink-soft)] max-w-2xl">Every Thursday: a short, human-reviewed guide to the weekend. Entries look like this —</p>
-
-  <div class="ticket rounded-lg mt-6 p-5 max-w-xl">
-    <p class="text-sm font-bold uppercase tracking-wide text-[color:var(--leaf)]">Saturday · 9:00 AM · Free</p>
-    <p class="font-display font-semibold text-xl mt-1">Downtown Bloomington Farmers Market</p>
-    <p class="text-sm text-[color:var(--ink-soft)] mt-1">Downtown Bloomington</p>
-    <p class="mt-2">Local vendors, produce, food, and a good low-effort Saturday morning option.</p>
-    <p class="mt-2 text-sm font-bold underline decoration-2 decoration-[color:var(--marigold)]">View details →</p>
+    <h1 class="rise rise-2 font-display font-bold text-4xl sm:text-[3.2rem] leading-[1.08] mt-6">
+      Bloomington-Normal weekend plans, sent every <span class="paint-underline">Thursday.</span>
+    </h1>
+    <p class="rise rise-3 mt-5 text-lg sm:text-xl text-[color:var(--stone)] leading-relaxed">
+      A friendly weekly guide for people who realize on Thursday that they still need weekend plans.
+    </p>
   </div>
 
-  <div class="mt-8">
-    <p class="font-bold mb-3">Example categories:</p>
-    <div class="flex flex-wrap gap-2.5">
-      <span class="chip px-3 py-1.5 rounded-full text-sm font-medium">🧺 Markets</span>
-      <span class="chip px-3 py-1.5 rounded-full text-sm font-medium">🎸 Live music</span>
-      <span class="chip px-3 py-1.5 rounded-full text-sm font-medium">👨‍👧 Family-friendly</span>
-      <span class="chip px-3 py-1.5 rounded-full text-sm font-medium">🆓 Free things to do</span>
-      <span class="chip px-3 py-1.5 rounded-full text-sm font-medium">🌙 Date night</span>
-      <span class="chip px-3 py-1.5 rounded-full text-sm font-medium">🍺 Food & drink</span>
-      <span class="chip px-3 py-1.5 rounded-full text-sm font-medium">🌳 Outdoor</span>
-      <span class="chip px-3 py-1.5 rounded-full text-sm font-medium">🎭 Arts & culture</span>
-      <span class="chip px-3 py-1.5 rounded-full text-sm font-medium">🎪 Festivals</span>
+  <div class="mt-8 lg:mt-0">
+    <div id="signup" class="rise rise-4 card p-6 sm:p-7 relative">
+      <!-- little sun doodle peeking over the card corner -->
+      <svg class="absolute -top-5 right-6" width="42" height="42" viewBox="0 0 42 42" fill="none" aria-hidden="true">
+        <circle cx="21" cy="23" r="9" fill="var(--mustard)" opacity=".9"/>
+        <g stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round">
+          <path d="M21 6 L21 11"/><path d="M8 12 L11.5 15.5"/><path d="M34 12 L30.5 15.5"/>
+          <path d="M4 25 L9 24.5"/><path d="M38 25 L33 24.5"/>
+        </g>
+      </svg>
+      <p class="font-display font-semibold text-xl text-[color:var(--forest)]">Get the Thursday digest</p>
+      <form method="post" action="/#signup" class="mt-4 flex flex-col gap-3" novalidate>
+        {% csrf_token %}
+        <label for="email" class="sr-only">Email address</label>
+        <input type="email" name="email" id="email" required placeholder="you@example.com"
+               value="{{ form.email.value|default:'' }}"
+               class="input-field px-4 py-3">
+        <input type="text" name="website" value="" tabindex="-1" autocomplete="off" aria-hidden="true" class="hidden">
+        <input type="hidden" name="source" value="{{ request.GET.utm_source|default:'landing' }}">
+        <button type="submit" class="btn-primary px-6 py-3">Get the digest</button>
+      </form>
+      {% if form.email.errors %}
+        <p class="mt-3 text-sm font-semibold text-[color:var(--terracotta)]">{{ form.email.errors.0 }}</p>
+      {% endif %}
+      <p class="mt-3 text-sm text-[color:var(--stone)]">Free. Sent every Thursday. Unsubscribe anytime.</p>
     </div>
   </div>
 </section>
 
-<div class="rule-wavy max-w-4xl mx-auto"></div>
+<hr class="rule-stitch max-w-5xl mx-auto my-10">
+
+<!-- What readers receive + sample preview, side by side -->
+<section class="max-w-5xl mx-auto px-5 lg:grid lg:grid-cols-2 lg:gap-12 lg:items-start">
+  <div>
+    <h2 class="font-display font-semibold text-3xl flex items-center gap-3">
+      <!-- leaf sprig doodle -->
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true" class="shrink-0">
+        <path d="M6 26 C 10 16 16 9 25 4" stroke="var(--forest)" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M12 17 C 9 14 8 10 9 6 C 13 8 15 11 15 15 Z" fill="var(--sage)"/>
+        <path d="M17 12 C 17 8 19 5 23 3 C 24 7 22 11 19 13 Z" fill="var(--terracotta)" opacity=".8"/>
+      </svg>
+      What you'll get
+    </h2>
+    <p class="mt-3 text-[color:var(--stone)]">
+      One short, scannable email: the weekend's best local happenings, hand-picked and organized —
+      no digging through twelve different calendars.
+    </p>
+    <div class="mt-5 flex flex-wrap gap-2.5">
+      <span class="chip px-4 py-1.5 text-sm font-medium">Markets</span>
+      <span class="chip px-4 py-1.5 text-sm font-medium">Live music</span>
+      <span class="chip px-4 py-1.5 text-sm font-medium">Family fun</span>
+      <span class="chip px-4 py-1.5 text-sm font-medium">Free things to do</span>
+      <span class="chip px-4 py-1.5 text-sm font-medium">Date night</span>
+      <span class="chip px-4 py-1.5 text-sm font-medium">Food &amp; drink</span>
+      <span class="chip px-4 py-1.5 text-sm font-medium">Outdoor</span>
+      <span class="chip px-4 py-1.5 text-sm font-medium">Festivals</span>
+      <span class="chip px-4 py-1.5 text-sm font-medium">Hidden gems</span>
+    </div>
+  </div>
+
+  <div class="mt-10 lg:mt-0">
+    <p class="text-xs font-bold uppercase tracking-widest text-[color:var(--stone)]">A taste of Thursday</p>
+    <div class="card card-cream mt-3 p-6">
+      <span class="signage" style="padding: 2px 10px; font-size: 11px;">★ Top pick</span>
+      <div class="mt-4 pb-4 border-b border-dashed border-[color:var(--sage)]">
+        <p class="font-semibold text-lg leading-snug">Saturday Morning Farmers Market</p>
+        <p class="text-sm text-[color:var(--stone)] mt-0.5">
+          Saturday, 8:00 AM · Downtown Bloomington · <span class="text-[color:var(--forest)] font-semibold">Free</span>
+        </p>
+        <p class="mt-1.5 text-[15px]">An easy Saturday morning pick for local food, vendors, and a walk downtown.</p>
+      </div>
+      <div class="mt-4">
+        <p class="font-semibold text-lg leading-snug">Jazz Night at the Castle Theatre</p>
+        <p class="text-sm text-[color:var(--stone)] mt-0.5">Saturday, 7:30 PM · Downtown Bloomington · $12</p>
+        <p class="mt-1.5 text-[15px]">A strong date-night option that doesn't require planning ahead.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule-stitch max-w-5xl mx-auto my-10">
 
 <!-- How it works -->
-<section class="max-w-4xl mx-auto px-5 py-12">
-  <h2 class="font-display font-black text-3xl">How it works</h2>
-  <ol class="mt-6 grid sm:grid-cols-3 gap-5">
-    <li class="ticket rounded-lg p-5">
-      <span class="font-display font-black text-3xl text-[color:var(--marigold)]">1</span>
-      <p class="font-bold mt-2">We gather</p>
-      <p class="text-sm text-[color:var(--ink-soft)] mt-1">Events are collected automatically from local calendars, libraries, parks, venues, and ticket sites.</p>
+<section class="max-w-5xl mx-auto px-5">
+  <h2 class="font-display font-semibold text-3xl flex items-center gap-3">
+    <!-- hand-drawn arrow doodle -->
+    <svg width="32" height="26" viewBox="0 0 32 26" fill="none" aria-hidden="true" class="shrink-0">
+      <path d="M3 20 C 10 8 20 6 28 10" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M23 6 L 28.5 10 L 23.5 14.5" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+    How it works
+  </h2>
+  <ol class="mt-6 grid sm:grid-cols-3 gap-4">
+    <li class="card p-5">
+      <span class="font-display font-bold text-2xl text-[color:var(--terracotta)]">1</span>
+      <p class="font-semibold mt-2">We gather</p>
+      <p class="text-[15px] text-[color:var(--stone)] mt-1">Events come in from local calendars, libraries, parks, venues, and ticket sites all week.</p>
     </li>
-    <li class="ticket rounded-lg p-5">
-      <span class="font-display font-black text-3xl text-[color:var(--marigold)]">2</span>
-      <p class="font-bold mt-2">We curate</p>
-      <p class="text-sm text-[color:var(--ink-soft)] mt-1">Duplicates get merged, junk gets dropped, and a human reviews what's actually worth your weekend.</p>
+    <li class="card p-5">
+      <span class="font-display font-bold text-2xl text-[color:var(--terracotta)]">2</span>
+      <p class="font-semibold mt-2">We choose</p>
+      <p class="text-[15px] text-[color:var(--stone)] mt-1">A person reviews everything and keeps only what's actually worth your weekend.</p>
     </li>
-    <li class="ticket rounded-lg p-5">
-      <span class="font-display font-black text-3xl text-[color:var(--marigold)]">3</span>
-      <p class="font-bold mt-2">You get one email</p>
-      <p class="text-sm text-[color:var(--ink-soft)] mt-1">Thursday morning: the weekend, organized. Open it, pick something, go.</p>
+    <li class="card p-5">
+      <span class="font-display font-bold text-2xl text-[color:var(--terracotta)]">3</span>
+      <p class="font-semibold mt-2">You get one email</p>
+      <p class="text-[15px] text-[color:var(--stone)] mt-1">Thursday morning: the weekend, organized. Open it, pick something, go.</p>
     </li>
   </ol>
 </section>
 
-<div class="rule-wavy max-w-4xl mx-auto"></div>
-
-<!-- Coverage + FAQ -->
-<section class="max-w-4xl mx-auto px-5 py-12 grid md:grid-cols-2 gap-10">
-  <div>
-    <h2 class="font-display font-black text-3xl">Coverage area</h2>
-    <p class="mt-3 text-[color:var(--ink-soft)]">
-      Focused on <strong class="text-[color:var(--ink)]">Bloomington-Normal and nearby areas</strong> —
-      including Towanda, Hudson, Carlock, Downs, and Heyworth. We may include nearby events worth the short drive.
-    </p>
-    <p class="mt-3 text-sm text-[color:var(--ink-soft)]">Just this region for now. No fake nationwide promises.</p>
-  </div>
-  <div>
-    <h2 class="font-display font-black text-3xl">FAQ</h2>
-    <div class="mt-4 space-y-3">
-      <details class="ticket rounded-md p-4">
-        <summary class="font-bold cursor-pointer">Is this only for Bloomington-Normal?</summary>
-        <p class="mt-2 text-sm text-[color:var(--ink-soft)]">Yes — this is focused on Bloomington-Normal and nearby areas.</p>
-      </details>
-      <details class="ticket rounded-md p-4">
-        <summary class="font-bold cursor-pointer">When does the email go out?</summary>
-        <p class="mt-2 text-sm text-[color:var(--ink-soft)]">Every Thursday.</p>
-      </details>
-      <details class="ticket rounded-md p-4">
-        <summary class="font-bold cursor-pointer">Is it free?</summary>
-        <p class="mt-2 text-sm text-[color:var(--ink-soft)]">Yes, it's free.</p>
-      </details>
-      <details class="ticket rounded-md p-4">
-        <summary class="font-bold cursor-pointer">Can I submit an event?</summary>
-        <p class="mt-2 text-sm text-[color:var(--ink-soft)]">Not yet. That may be added later.</p>
-      </details>
-      <details class="ticket rounded-md p-4">
-        <summary class="font-bold cursor-pointer">Will this cover every event?</summary>
-        <p class="mt-2 text-sm text-[color:var(--ink-soft)]">No. The goal is to surface useful events, not list every single thing happening.</p>
-      </details>
+<!-- Coverage area -->
+<section class="max-w-5xl mx-auto px-5 mt-12">
+  <div class="card card-cream p-6 sm:flex items-start gap-5">
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true" class="shrink-0 mb-3 sm:mb-0">
+      <path d="M22 4 C14 4 8 10 8 18 c0 10 14 22 14 22 s14 -12 14 -22 c0 -8 -6 -14 -14 -14 z" stroke="var(--forest)" stroke-width="2" fill="var(--linen)"/>
+      <circle cx="22" cy="18" r="5" fill="var(--terracotta)"/>
+    </svg>
+    <div>
+      <h2 class="font-display font-semibold text-2xl">Coverage area</h2>
+      <p class="mt-1.5 text-[15px] text-[color:var(--stone)]">
+        Focused on <strong class="text-[color:var(--charcoal)]">Bloomington and Normal</strong>, plus Towanda, Hudson,
+        Carlock, Downs, Heyworth — and the occasional nearby thing worth the short drive. Just this corner of
+        Central Illinois, covered well.
+      </p>
     </div>
   </div>
 </section>
 
-<!-- Bottom CTA -->
-<section class="max-w-4xl mx-auto px-5 pb-4 text-center">
-  <a href="#signup" class="btn-primary inline-block px-8 py-4 rounded-md font-bold text-lg">Get the Thursday event digest</a>
+<!-- FAQ -->
+<section class="max-w-5xl mx-auto px-5 mt-12">
+  <h2 class="font-display font-semibold text-3xl flex items-center gap-3">
+    <!-- star doodle -->
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true" class="shrink-0">
+      <path d="M14 3 L16.4 10.8 L24.5 11 L18 15.9 L20.3 23.7 L14 19 L7.7 23.7 L10 15.9 L3.5 11 L11.6 10.8 Z"
+            fill="var(--mustard)" opacity=".85"/>
+    </svg>
+    Questions, answered
+  </h2>
+  <div class="mt-4 grid sm:grid-cols-2 gap-3 items-start">
+    <details class="card p-4">
+      <summary class="font-semibold cursor-pointer">Is this only for Bloomington-Normal?</summary>
+      <p class="mt-2 text-[15px] text-[color:var(--stone)]">Yes — this is focused on Bloomington-Normal and nearby areas.</p>
+    </details>
+    <details class="card p-4">
+      <summary class="font-semibold cursor-pointer">When does the email go out?</summary>
+      <p class="mt-2 text-[15px] text-[color:var(--stone)]">Every Thursday.</p>
+    </details>
+    <details class="card p-4">
+      <summary class="font-semibold cursor-pointer">Is it free?</summary>
+      <p class="mt-2 text-[15px] text-[color:var(--stone)]">Yes, it's free.</p>
+    </details>
+    <details class="card p-4">
+      <summary class="font-semibold cursor-pointer">Will this cover every event?</summary>
+      <p class="mt-2 text-[15px] text-[color:var(--stone)]">No — the goal is to surface useful events, not list every single thing happening.</p>
+    </details>
+  </div>
+</section>
+
+<!-- Repeated signup near bottom -->
+<section class="max-w-5xl mx-auto px-5 mt-14">
+  <div class="card p-7 sm:p-9 text-center relative overflow-hidden" style="background: var(--forest);">
+    <!-- garland across the full width of the block -->
+    <svg class="absolute top-0 left-0 w-full h-auto" viewBox="0 0 640 32" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMin meet">
+      <path d="M32 8 L48 8 L40 22 Z" fill="var(--mustard)" opacity=".95"/>
+      <path d="M102 12 L118 12 L110 26 Z" fill="var(--cream)" opacity=".9"/>
+      <path d="M172 8 L188 8 L180 22 Z" fill="var(--terracotta)" opacity=".95"/>
+      <path d="M242 12 L258 12 L250 26 Z" fill="var(--sage)"/>
+      <path d="M312 8 L328 8 L320 22 Z" fill="var(--dustblue)"/>
+      <path d="M382 12 L398 12 L390 26 Z" fill="var(--mustard)" opacity=".95"/>
+      <path d="M452 8 L468 8 L460 22 Z" fill="var(--cream)" opacity=".9"/>
+      <path d="M522 12 L538 12 L530 26 Z" fill="var(--terracotta)" opacity=".95"/>
+      <path d="M592 8 L608 8 L600 22 Z" fill="var(--sage)"/>
+      <path d="M0 6 L 40 8 L 110 12 L 180 8 L 250 12 L 320 8 L 390 12 L 460 8 L 530 12 L 600 8 L 640 10"
+            stroke="var(--sage)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>
+    </svg>
+    <h2 class="font-display font-semibold text-3xl" style="color: var(--cream);">Your weekend, one email away.</h2>
+    <form method="post" action="/#signup" class="mt-5 flex flex-col sm:flex-row gap-3 max-w-lg mx-auto" novalidate>
+      {% csrf_token %}
+      <label for="email-bottom" class="sr-only">Email address</label>
+      <input type="email" name="email" id="email-bottom" required placeholder="you@example.com"
+             class="input-field flex-1 px-4 py-3">
+      <input type="text" name="website" value="" tabindex="-1" autocomplete="off" aria-hidden="true" class="hidden">
+      <input type="hidden" name="source" value="landing-bottom">
+      <button type="submit" class="btn-secondary px-6 py-3 whitespace-nowrap">Get the digest</button>
+    </form>
+    <p class="mt-3 text-sm" style="color: var(--sage);">Free. Sent every Thursday. Unsubscribe anytime.</p>
+  </div>
 </section>
 {% endblock %}

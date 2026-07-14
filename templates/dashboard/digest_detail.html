@@ -31,6 +31,39 @@
   <label class="text-sm font-bold text-slate-600">Intro text
     <textarea name="intro_text" rows="2" class="mt-1 w-full border rounded px-2 py-1.5 font-normal">{{ issue.intro_text }}</textarea>
   </label>
+
+  <details {% if issue.media_enabled %}open{% endif %} class="border rounded p-3">
+    <summary class="text-sm font-bold text-slate-600 cursor-pointer">
+      Personality media block (optional — GIF, meme, seasonal image)
+      {% if issue.media_active %}<span class="ml-2 text-xs font-normal bg-green-100 text-green-800 px-2 py-0.5 rounded-full">on</span>{% endif %}
+    </summary>
+    <div class="grid sm:grid-cols-2 gap-3 mt-3 text-sm">
+      <label class="font-bold text-slate-600 sm:col-span-2">Image or GIF URL (externally hosted)
+        <input name="media_url" value="{{ issue.media_url }}" placeholder="https://…/something.gif" class="mt-1 w-full border rounded px-2 py-1.5 font-normal">
+      </label>
+      <label class="font-bold text-slate-600">Alt text <span class="font-normal text-slate-400">(what it shows — required for accessibility)</span>
+        <input name="media_alt" value="{{ issue.media_alt }}" class="mt-1 w-full border rounded px-2 py-1.5 font-normal">
+      </label>
+      <label class="font-bold text-slate-600">Caption <span class="font-normal text-slate-400">(optional)</span>
+        <input name="media_caption" value="{{ issue.media_caption }}" class="mt-1 w-full border rounded px-2 py-1.5 font-normal">
+      </label>
+      <label class="font-bold text-slate-600">Link when clicked <span class="font-normal text-slate-400">(optional)</span>
+        <input name="media_link" value="{{ issue.media_link }}" class="mt-1 w-full border rounded px-2 py-1.5 font-normal">
+      </label>
+      <label class="font-bold text-slate-600">Placement
+        <select name="media_placement" class="mt-1 block border rounded px-2 py-1.5 font-normal">
+          {% for value, label in issue.MediaPlacement.choices %}
+          <option value="{{ value }}" {% if issue.media_placement == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="flex items-center gap-2 font-bold text-slate-600 sm:col-span-2">
+        <input type="checkbox" name="media_enabled" {% if issue.media_enabled %}checked{% endif %}>
+        Include in this issue
+      </label>
+    </div>
+  </details>
+
   <div><button name="action" value="update_meta" class="bg-slate-900 text-white text-sm px-4 py-2 rounded hover:bg-slate-700">Save details</button></div>
 </form>
 

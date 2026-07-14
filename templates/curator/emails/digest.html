@@ -5,53 +5,126 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ issue.subject_line }}</title>
 </head>
-<body style="margin:0; padding:0; background-color:#F7F1E2; font-family: Georgia, 'Times New Roman', serif; color:#24321F;">
+<body style="margin:0; padding:0; background-color:#FAF5E9; font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif; color:#2E302C;">
   <div style="max-width:600px; margin:0 auto; padding:24px 16px;">
 
-    <div style="text-align:center; padding-bottom:16px;">
-      <p style="font-size:13px; letter-spacing:2px; text-transform:uppercase; color:#B5442E; margin:0;">BloNo Digest</p>
-      <h1 style="font-size:26px; margin:8px 0 0;">{{ issue.title }}</h1>
+    <!-- Branded header -->
+    <div style="text-align:center;">
+      <p style="font-family: Georgia, 'Times New Roman', serif; font-size:20px; font-weight:bold; color:#294C3A; margin:0;">
+        BloNo Digest<span style="color:#C96F4A;">.</span>
+      </p>
     </div>
 
-    {% if issue.intro_text %}
-    <p style="font-size:16px; line-height:1.5; margin:0 0 20px;">{{ issue.intro_text }}</p>
+    <!-- Pennant garland: dashed string with hanging flags (email-safe, no images) -->
+    <div style="border-bottom:2px dashed #A8B89A; margin:10px 0 0;"></div>
+    <div style="text-align:center; font-size:15px; line-height:1; letter-spacing:26px; margin:-2px 0 0; padding-left:26px;">
+      <span style="color:#C96F4A;">&#9660;</span><span style="color:#D5A640;">&#9660;</span><span style="color:#294C3A;">&#9660;</span><span style="color:#718C9E;">&#9660;</span><span style="color:#A8B89A;">&#9660;</span><span style="color:#C96F4A;">&#9660;</span>
+    </div>
+
+    <!-- Opening -->
+    <div style="text-align:center; margin-top:16px;">
+      <h1 style="font-family: Georgia, 'Times New Roman', serif; font-size:25px; font-weight:bold; color:#294C3A; margin:0; line-height:1.25;">
+        This Weekend Around Bloomington-Normal
+      </h1>
+      <!-- painted underline -->
+      <div style="width:130px; height:4px; background:#C96F4A; border-radius:99px 40px 99px 50px; margin:9px auto 0; opacity:.75;"></div>
+      <p style="font-size:13px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:#6F6A60; margin:10px 0 0;">
+        {{ issue.target_start_date|date:"M j" }} – {{ issue.target_end_date|date:"M j" }}
+      </p>
+      {% if issue.intro_text %}
+      <p style="font-size:15px; line-height:1.5; color:#2E302C; margin:10px 0 0;">{{ issue.intro_text }}</p>
+      {% endif %}
+    </div>
+
+    {% if issue.media_active and issue.media_placement == "after_intro" %}
+    <!-- Personality media block -->
+    <div style="text-align:center; margin:18px 0 0;">
+      {% if issue.media_link %}<a href="{{ issue.media_link }}">{% endif %}
+      <img src="{{ issue.media_url }}" alt="{{ issue.media_alt }}" width="100%"
+           style="max-width:100%; border-radius:12px; border:1px solid #EEE5D5;">
+      {% if issue.media_link %}</a>{% endif %}
+      {% if issue.media_caption %}
+      <p style="font-size:13px; color:#6F6A60; margin:6px 0 0;">{{ issue.media_caption }}</p>
+      {% endif %}
+    </div>
     {% endif %}
 
     {% for section_key, label, digest_events in sections %}
-    <div style="margin-top:28px;">
-      <h2 style="font-size:15px; text-transform:uppercase; letter-spacing:1.5px; color:#46703F; border-bottom:2px solid #24321F; padding-bottom:6px; margin:0 0 4px;">{{ label }}</h2>
+    <!-- Section: {{ label }} -->
+    <div style="margin-top:22px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td style="white-space:nowrap; padding-right:10px;">
+          {% if section_key == "top_picks" %}
+          <span style="display:inline-block; background:#D5A640; color:#2E302C; border-radius:999px; padding:3px 12px; font-size:12px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">★ {{ label }}</span>
+          {% else %}
+          <span style="color:#C96F4A; font-size:11px;">&#9660;</span>
+          <span style="font-family: Georgia, serif; font-size:16px; font-weight:bold; color:#294C3A;">{{ label }}</span>
+          {% endif %}
+        </td>
+        <td width="100%" style="border-top:2px dashed #A8B89A;"></td>
+      </tr></table>
+
       {% for de in digest_events %}
-      <div style="padding:12px 0; border-bottom:1px dashed #C9BFA5;">
-        {% if de.event.image_url %}
-        <img src="{{ de.event.image_url }}" alt="" width="96"
-             style="float:right; width:96px; height:72px; object-fit:cover; border-radius:6px; margin:2px 0 6px 14px; border:1px solid #C9BFA5;">
-        {% endif %}
-        <p style="font-size:16px; font-weight:bold; margin:0;">
-          {% if de.event.source_url %}<a href="{{ de.event.source_url }}" style="color:#24321F; text-decoration:none;">{{ de.event.canonical_title }}</a>{% else %}{{ de.event.canonical_title }}{% endif %}
-        </p>
-        <p style="font-size:13px; color:#4A5843; margin:3px 0 0;">
-          {{ de.event.starts_at|date:"D, M j" }}{% if de.event.time_is_known %} · {{ de.event.starts_at|date:"g:i A" }}{% endif %} · {{ de.event.location_display }}{% if de.event.price_text %} · <span style="color:#46703F; font-weight:bold;">{{ de.event.price_text }}</span>{% endif %}
-        </p>
-        {% if de.blurb %}
-        <p style="font-size:14px; line-height:1.45; color:#3A4636; margin:6px 0 0;">
-          {{ de.blurb }}{% if de.event.source_url %} <a href="{{ de.event.source_url }}" style="color:#B5442E; font-weight:bold; text-decoration:none;">Details&nbsp;→</a>{% endif %}
-        </p>
-        {% elif de.event.source_url %}
-        <p style="margin:6px 0 0;"><a href="{{ de.event.source_url }}" style="font-size:13px; color:#B5442E; font-weight:bold; text-decoration:none;">Details →</a></p>
-        {% endif %}
-        <div style="clear:both;"></div>
+      <!-- Event card -->
+      <div style="background:#FFFFFF; border:1px solid #EEE5D5; border-radius:12px; padding:11px 14px; margin-top:9px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td style="vertical-align:top;">
+            <p style="font-size:16px; font-weight:600; margin:0; line-height:1.3;">
+              {% if de.event.source_url %}<a href="{{ de.event.source_url }}" style="color:#2E302C; text-decoration:none;">{{ de.event.canonical_title }}</a>{% else %}{{ de.event.canonical_title }}{% endif %}
+            </p>
+            <p style="font-size:13px; color:#6F6A60; margin:3px 0 0;">
+              {{ de.event.starts_at|date:"D, M j" }}{% if de.event.time_is_known %} · {{ de.event.starts_at|date:"g:i A" }}{% endif %} · {{ de.event.location_display }}{% if de.event.price_text %} · <span style="color:#294C3A; font-weight:600;">{{ de.event.price_text }}</span>{% endif %}
+            </p>
+            {% if de.blurb %}
+            <p style="font-size:14px; line-height:1.45; color:#2E302C; margin:5px 0 0;">
+              {{ de.blurb }} <a href="{{ de.event.source_url }}" style="color:#C96F4A; font-weight:600; text-decoration:none; white-space:nowrap;">Details&nbsp;&#8594;</a>
+            </p>
+            {% elif de.event.source_url %}
+            <p style="margin:5px 0 0;"><a href="{{ de.event.source_url }}" style="font-size:13px; color:#C96F4A; font-weight:600; text-decoration:none;">Details &#8594;</a></p>
+            {% endif %}
+          </td>
+          {% if de.event.image_url and section_key in image_sections %}
+          <td width="104" style="vertical-align:top; padding-left:12px;">
+            <img src="{{ de.event.image_url }}" alt="" width="92"
+                 style="width:92px; height:auto; border-radius:8px; display:block; border:1px solid #EEE5D5;">
+          </td>
+          {% endif %}
+        </tr></table>
       </div>
       {% endfor %}
     </div>
     {% endfor %}
 
-    <div style="margin-top:36px; padding-top:16px; border-top:2px solid #24321F; text-align:center;">
-      <p style="font-size:13px; color:#4A5843; line-height:1.6;">
-        You're getting this because you subscribed to the Bloomington-Normal weekend digest at
-        <a href="{{ site_base_url }}" style="color:#B5442E;">{{ site_base_url }}</a>.<br>
-        Sent every Thursday. Focused on Bloomington-Normal and nearby areas.<br>
+    {% if issue.media_active and issue.media_placement == "before_footer" %}
+    <!-- Personality media block -->
+    <div style="text-align:center; margin:20px 0 0;">
+      {% if issue.media_link %}<a href="{{ issue.media_link }}">{% endif %}
+      <img src="{{ issue.media_url }}" alt="{{ issue.media_alt }}" width="100%"
+           style="max-width:100%; border-radius:12px; border:1px solid #EEE5D5;">
+      {% if issue.media_link %}</a>{% endif %}
+      {% if issue.media_caption %}
+      <p style="font-size:13px; color:#6F6A60; margin:6px 0 0;">{{ issue.media_caption }}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Reader response box -->
+    <div style="background:#EEE5D5; border-radius:12px; padding:14px 16px; margin-top:22px; text-align:center;">
+      <p style="font-size:15px; font-weight:600; color:#294C3A; margin:0;">Did we miss something good?</p>
+      <p style="font-size:14px; color:#2E302C; margin:4px 0 0;">
+        Hit reply and tell us — we read everything.
+        <a href="mailto:hello@blonodigest.com?subject=Event%20suggestion" style="color:#C96F4A; font-weight:600;">Suggest an event</a>
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top:20px; padding-top:12px; border-top:2px dashed #A8B89A; text-align:center;">
+      <p style="font-size:12px; color:#6F6A60; line-height:1.7; margin:0;">
+        You're getting this because you subscribed at
+        <a href="{{ site_base_url }}" style="color:#C96F4A;">blonodigest.com</a>.
+        Sent every Thursday.<br>
         {% if postal_address %}BloNo Digest · {{ postal_address }}<br>{% endif %}
-        <a href="{{ unsubscribe_url }}" style="color:#4A5843;">Unsubscribe</a>
+        <a href="{{ unsubscribe_url }}" style="color:#6F6A60;">Unsubscribe</a>
       </p>
     </div>
   </div>

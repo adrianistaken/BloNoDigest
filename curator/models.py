@@ -256,16 +256,23 @@ class EventSourceLink(models.Model):
         ]
 
 
+# Section labels follow the visual design spec's recurring newsletter elements.
+# Keys are stable; only labels are display copy.
 DIGEST_SECTIONS = [
-    ("top_picks", "Top picks"),
-    ("family_friendly", "Family-friendly"),
-    ("free_cheap", "Free or cheap"),
-    ("date_night", "Date night"),
-    ("music_food", "Music, food, and downtown"),
-    ("outdoor_markets", "Outdoor, markets, and festivals"),
-    ("worth_the_drive", "Worth the drive"),
-    ("next_week", "Coming up next week"),
+    ("top_picks", "Top Picks"),
+    ("family_friendly", "Family Fun"),
+    ("free_cheap", "Free or Cheap"),
+    ("date_night", "Date Night"),
+    ("music_food", "Music & Food"),
+    ("outdoor_markets", "Outdoor & Markets"),
+    ("hidden_gem", "Hidden Gem"),
+    ("worth_the_drive", "Worth the Short Drive"),
+    ("next_week", "Looking Ahead"),
 ]
+
+# Sections that may show event images in the email (spec §15: 4–6 images max,
+# mostly Top Picks; everything else stays text-only)
+IMAGE_SECTIONS = {"top_picks", "hidden_gem"}
 
 
 class DigestIssue(TimestampedModel):
@@ -274,6 +281,10 @@ class DigestIssue(TimestampedModel):
         REVIEWED = "reviewed"
         SENT = "sent"
         ARCHIVED = "archived"
+
+    class MediaPlacement(models.TextChoices):
+        AFTER_INTRO = "after_intro", "After the intro"
+        BEFORE_FOOTER = "before_footer", "Before the footer"
 
     region = models.ForeignKey(Region, on_delete=models.CASCADE, related_name="digest_issues")
     title = models.CharField(max_length=300)
@@ -284,6 +295,21 @@ class DigestIssue(TimestampedModel):
     target_end_date = models.DateField()
     generated_at = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
+
+    # Optional per-issue personality media block (design spec §16). Externally
+    # hosted URL only — the app has no persistent file storage in production.
+    media_enabled = models.BooleanField(default=False)
+    media_url = models.URLField(max_length=1000, blank=True)
+    media_alt = models.CharField(max_length=300, blank=True)
+    media_caption = models.CharField(max_length=300, blank=True)
+    media_link = models.URLField(max_length=1000, blank=True)
+    media_placement = models.CharField(
+        max_length=20, choices=MediaPlacement.choices, default=MediaPlacement.AFTER_INTRO
+    )
+
+    @property
+    def media_active(self):
+        return self.media_enabled and bool(self.media_url)
 
     class Meta:
         ordering = ["-target_start_date"]
@@ -314,7 +340,7 @@ class DigestEvent(models.Model):
             models.UniqueConstraint(fields=["digest_issue", "event"], name="unique_event_per_digest"),
         ]
 
-    BLURB_MAX_CHARS = 170
+    BLURB_MAX_CHARS = 110
 
     @property
     def blurb(self):

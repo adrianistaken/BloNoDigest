@@ -22,7 +22,7 @@ class EventForm(forms.ModelForm):
         fields = [
             "canonical_title", "description", "starts_at", "ends_at", "time_is_known",
             "venue_name", "address_line", "city", "state", "postal_code",
-            "price_text", "price_min", "price_max", "source_url",
+            "price_text", "price_min", "price_max", "source_url", "image_url",
             "categories", "status", "quality_score", "editorial_notes",
         ]
         widgets = {

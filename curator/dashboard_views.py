@@ -211,7 +211,14 @@ def digest_detail(request, issue_id):
         elif action == "update_meta":
             issue.subject_line = request.POST.get("subject_line", issue.subject_line)[:300]
             issue.intro_text = request.POST.get("intro_text", issue.intro_text)
-            issue.save(update_fields=["subject_line", "intro_text", "updated_at"])
+            issue.media_enabled = request.POST.get("media_enabled") == "on"
+            issue.media_url = request.POST.get("media_url", "").strip()[:1000]
+            issue.media_alt = request.POST.get("media_alt", "").strip()[:300]
+            issue.media_caption = request.POST.get("media_caption", "").strip()[:300]
+            issue.media_link = request.POST.get("media_link", "").strip()[:1000]
+            if request.POST.get("media_placement") in dict(DigestIssue.MediaPlacement.choices):
+                issue.media_placement = request.POST["media_placement"]
+            issue.save()
             messages.success(request, "Digest details saved.")
         elif action == "send_test":
             to = send_test_email(issue, request.POST.get("test_email") or None)

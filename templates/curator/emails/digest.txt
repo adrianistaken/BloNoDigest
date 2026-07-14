@@ -12,6 +12,8 @@
 {% endif %}{% if de.event.source_url %}Details: {{ de.event.source_url }}
 {% endif %}
 {% endfor %}{% endfor %}
+Did we miss something good? Hit reply and tell us — we read everything.
+
 --
 You subscribed to the Bloomington-Normal weekend digest at {{ site_base_url }}
 Sent every Thursday.{% if postal_address %} BloNo Digest · {{ postal_address }}{% endif %}

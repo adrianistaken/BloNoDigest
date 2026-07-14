@@ -11,7 +11,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from .models import EmailSend, Subscriber
+from .models import IMAGE_SECTIONS, EmailSend, Subscriber
 
 logger = logging.getLogger("curator.emails")
 
@@ -20,6 +20,7 @@ def render_digest(issue, unsubscribe_url):
     context = {
         "issue": issue,
         "sections": issue.sections_with_events(),
+        "image_sections": IMAGE_SECTIONS,
         "unsubscribe_url": unsubscribe_url,
         "site_base_url": settings.SITE_BASE_URL,
         "postal_address": settings.EMAIL_POSTAL_ADDRESS,
