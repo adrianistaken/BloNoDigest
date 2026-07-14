@@ -378,6 +378,12 @@ class SignupTests(TestCase):
         self.assertEqual(subscriber.status, "active")
         self.assertEqual(subscriber.region, self.region)
         self.assertEqual(len(mail.outbox), 1)  # welcome email
+        welcome = mail.outbox[0]
+        html, mimetype = welcome.alternatives[0]
+        self.assertEqual(mimetype, "text/html")
+        self.assertIn("You're in.", html)
+        self.assertIn(subscriber.unsubscribe_token, html)
+        self.assertIn(subscriber.unsubscribe_token, welcome.body)  # text version too
 
     def test_honeypot_stores_nothing(self):
         response = self.client.post("/", {"email": "bot@example.com", "website": "spam.biz"})

@@ -81,16 +81,19 @@ def send_digest(issue):
 def send_welcome_email(subscriber):
     """Best-effort confirmation email on signup; failures never block signup."""
     try:
-        unsubscribe_url = f"{settings.SITE_BASE_URL}/unsubscribe/{subscriber.unsubscribe_token}/"
+        context = {
+            "unsubscribe_url": f"{settings.SITE_BASE_URL}/unsubscribe/{subscriber.unsubscribe_token}/",
+            "site_base_url": settings.SITE_BASE_URL,
+            "postal_address": settings.EMAIL_POSTAL_ADDRESS,
+        }
         message = EmailMultiAlternatives(
             subject="You're in — BloNo Digest",
-            body=(
-                "You're subscribed to the Bloomington-Normal weekend digest.\n\n"
-                "Watch for the next issue on Thursday.\n\n"
-                f"Unsubscribe any time: {unsubscribe_url}\n"
-            ),
+            body=render_to_string("curator/emails/welcome.txt", context),
             from_email=settings.EMAIL_FROM_ADDRESS,
             to=[subscriber.email],
+        )
+        message.attach_alternative(
+            render_to_string("curator/emails/welcome.html", context), "text/html"
         )
         message.send()
     except Exception as exc:

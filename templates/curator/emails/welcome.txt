@@ -1,0 +1,15 @@
+You're in.
+
+Watch for your first Bloomington-Normal weekend digest on Thursday — one
+short email so you never have to dig through a dozen calendars again.
+
+What lands in your inbox: the weekend's best local events, hand-picked and
+organized — markets, live music, family picks, free things to do, date
+night, food & drink, outdoor, and festivals.
+
+Covering Bloomington, Normal, and nearby towns worth the short drive.
+
+--
+You signed up at {{ site_base_url }}. Sent every Thursday.
+{% if postal_address %}BloNo Digest · {{ postal_address }}
+{% endif %}Unsubscribe any time: {{ unsubscribe_url }}
