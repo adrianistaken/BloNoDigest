@@ -1,107 +1,144 @@
 {% extends "curator/public_base.html" %}
+{% load static %}
 
 {% block content %}
-<!-- Hero: headline left, signup right on desktop; stacked on mobile -->
-<section class="max-w-5xl mx-auto px-5 pt-12 pb-4 lg:grid lg:grid-cols-[7fr_5fr] lg:gap-12 lg:items-center">
-  <div>
-    <!-- pennant garland: spans the full headline width, flags on the string -->
-    <svg class="rise rise-1 w-full h-auto" viewBox="0 0 640 38" fill="none" aria-hidden="true" preserveAspectRatio="xMinYMid meet">
-      <path d="M31 10 L49 10 L40 27 Z" fill="var(--terracotta)" opacity=".9"/>
-      <path d="M101 14 L119 14 L110 31 Z" fill="var(--mustard)" opacity=".9"/>
-      <path d="M171 10 L189 10 L180 27 Z" fill="var(--forest)" opacity=".85"/>
-      <path d="M241 14 L259 14 L250 31 Z" fill="var(--dustblue)" opacity=".85"/>
-      <path d="M311 10 L329 10 L320 27 Z" fill="var(--terracotta)" opacity=".9"/>
-      <path d="M381 14 L399 14 L390 31 Z" fill="var(--sage)"/>
-      <path d="M451 10 L469 10 L460 27 Z" fill="var(--mustard)" opacity=".9"/>
-      <path d="M521 14 L539 14 L530 31 Z" fill="var(--forest)" opacity=".85"/>
-      <path d="M591 10 L609 10 L600 27 Z" fill="var(--terracotta)" opacity=".9"/>
-      <path d="M4 8 L 40 10 L 110 14 L 180 10 L 250 14 L 320 10 L 390 14 L 460 10 L 530 14 L 600 10 L 636 12"
-            stroke="var(--sage)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<!-- Hero: centered banner layout -->
+<section class="max-w-5xl mx-auto px-5 pt-10 pb-4 text-center">
+  <!-- pennant garland: centered banner over the headline -->
+  <svg class="rise rise-1 w-full max-w-2xl mx-auto h-auto block" viewBox="0 0 640 38" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+    <path d="M31 10 L49 10 L40 27 Z" fill="var(--terracotta)" opacity=".9"/>
+    <path d="M101 14 L119 14 L110 31 Z" fill="var(--mustard)" opacity=".9"/>
+    <path d="M171 10 L189 10 L180 27 Z" fill="var(--forest)" opacity=".85"/>
+    <path d="M241 14 L259 14 L250 31 Z" fill="var(--dustblue)" opacity=".85"/>
+    <path d="M311 10 L329 10 L320 27 Z" fill="var(--terracotta)" opacity=".9"/>
+    <path d="M381 14 L399 14 L390 31 Z" fill="var(--sage)"/>
+    <path d="M451 10 L469 10 L460 27 Z" fill="var(--mustard)" opacity=".9"/>
+    <path d="M521 14 L539 14 L530 31 Z" fill="var(--forest)" opacity=".85"/>
+    <path d="M591 10 L609 10 L600 27 Z" fill="var(--terracotta)" opacity=".9"/>
+    <path d="M4 8 L 40 10 L 110 14 L 180 10 L 250 14 L 320 10 L 390 14 L 460 10 L 530 14 L 600 10 L 636 12"
+          stroke="var(--sage)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+
+  <h1 class="rise rise-2 font-display font-bold text-4xl sm:text-[3.2rem] leading-[1.08] mt-7 max-w-3xl mx-auto">
+    Bloomington-Normal weekend plans, sent every <span class="paint-underline">Thursday.</span>
+  </h1>
+  <p class="rise rise-3 mt-5 text-lg sm:text-xl text-[color:var(--stone)] leading-relaxed max-w-2xl mx-auto">
+    A guide for people who realize they still need weekend plans.
+  </p>
+
+  <div id="signup" class="rise rise-4 card p-6 sm:p-7 relative max-w-xl mx-auto mt-9 text-left">
+    <!-- little sun doodle peeking over the card corner -->
+    <svg class="absolute -top-5 right-6" width="42" height="42" viewBox="0 0 42 42" fill="none" aria-hidden="true">
+      <circle cx="21" cy="23" r="9" fill="var(--mustard)" opacity=".9"/>
+      <g stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round">
+        <path d="M21 6 L21 11"/><path d="M8 12 L11.5 15.5"/><path d="M34 12 L30.5 15.5"/>
+        <path d="M4 25 L9 24.5"/><path d="M38 25 L33 24.5"/>
+      </g>
     </svg>
-
-    <h1 class="rise rise-2 font-display font-bold text-4xl sm:text-[3.2rem] leading-[1.08] mt-6">
-      Bloomington-Normal weekend plans, sent every <span class="paint-underline">Thursday.</span>
-    </h1>
-    <p class="rise rise-3 mt-5 text-lg sm:text-xl text-[color:var(--stone)] leading-relaxed">
-      A friendly weekly guide for people who realize on Thursday that they still need weekend plans.
-    </p>
-  </div>
-
-  <div class="mt-8 lg:mt-0">
-    <div id="signup" class="rise rise-4 card p-6 sm:p-7 relative">
-      <!-- little sun doodle peeking over the card corner -->
-      <svg class="absolute -top-5 right-6" width="42" height="42" viewBox="0 0 42 42" fill="none" aria-hidden="true">
-        <circle cx="21" cy="23" r="9" fill="var(--mustard)" opacity=".9"/>
-        <g stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round">
-          <path d="M21 6 L21 11"/><path d="M8 12 L11.5 15.5"/><path d="M34 12 L30.5 15.5"/>
-          <path d="M4 25 L9 24.5"/><path d="M38 25 L33 24.5"/>
-        </g>
-      </svg>
-      <p class="font-display font-semibold text-xl text-[color:var(--forest)]">Get the Thursday digest</p>
-      <form method="post" action="/#signup" class="mt-4 flex flex-col gap-3" novalidate>
-        {% csrf_token %}
-        <label for="email" class="sr-only">Email address</label>
-        <input type="email" name="email" id="email" required placeholder="you@example.com"
-               value="{{ form.email.value|default:'' }}"
-               class="input-field px-4 py-3">
-        <input type="text" name="website" value="" tabindex="-1" autocomplete="off" aria-hidden="true" class="hidden">
-        <input type="hidden" name="source" value="{{ request.GET.utm_source|default:'landing' }}">
-        <button type="submit" class="btn-primary px-6 py-3">Get the digest</button>
-      </form>
-      {% if form.email.errors %}
-        <p class="mt-3 text-sm font-semibold text-[color:var(--terracotta)]">{{ form.email.errors.0 }}</p>
-      {% endif %}
-      <p class="mt-3 text-sm text-[color:var(--stone)]">Free. Sent every Thursday. Unsubscribe anytime.</p>
-    </div>
+    <form method="post" action="/#signup" class="flex flex-col sm:flex-row gap-3" novalidate>
+      {% csrf_token %}
+      <label for="email" class="sr-only">Email address</label>
+      <input type="email" name="email" id="email" required placeholder="you@example.com"
+             value="{{ form.email.value|default:'' }}"
+             class="input-field flex-1 px-4 py-3">
+      <input type="text" name="website" value="" tabindex="-1" autocomplete="off" aria-hidden="true" class="hidden">
+      <input type="hidden" name="source" value="{{ request.GET.utm_source|default:'landing' }}">
+      <button type="submit" class="btn-primary px-6 py-3 whitespace-nowrap">Get the digest</button>
+    </form>
+    {% if form.email.errors %}
+      <p class="mt-3 text-sm font-semibold text-[color:var(--terracotta)]">{{ form.email.errors.0 }}</p>
+    {% endif %}
+    <p class="mt-3 text-sm text-[color:var(--stone)] text-center">Free. Sent every Thursday. Unsubscribe anytime.</p>
   </div>
 </section>
 
 <hr class="rule-stitch max-w-5xl mx-auto my-10">
 
-<!-- What readers receive + sample preview, side by side -->
-<section class="max-w-5xl mx-auto px-5 lg:grid lg:grid-cols-2 lg:gap-12 lg:items-start">
-  <div>
-    <h2 class="font-display font-semibold text-3xl flex items-center gap-3">
-      <!-- leaf sprig doodle -->
-      <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true" class="shrink-0">
-        <path d="M6 26 C 10 16 16 9 25 4" stroke="var(--forest)" stroke-width="2" stroke-linecap="round" fill="none"/>
-        <path d="M12 17 C 9 14 8 10 9 6 C 13 8 15 11 15 15 Z" fill="var(--sage)"/>
-        <path d="M17 12 C 17 8 19 5 23 3 C 24 7 22 11 19 13 Z" fill="var(--terracotta)" opacity=".8"/>
-      </svg>
-      What you'll get
-    </h2>
-    <p class="mt-3 text-[color:var(--stone)]">
-      One short, scannable email: the weekend's best local happenings, hand-picked and organized —
-      no digging through twelve different calendars.
-    </p>
-    <div class="mt-5 flex flex-wrap gap-2.5">
-      <span class="chip px-4 py-1.5 text-sm font-medium">Markets</span>
-      <span class="chip px-4 py-1.5 text-sm font-medium">Live music</span>
-      <span class="chip px-4 py-1.5 text-sm font-medium">Family fun</span>
-      <span class="chip px-4 py-1.5 text-sm font-medium">Free things to do</span>
-      <span class="chip px-4 py-1.5 text-sm font-medium">Date night</span>
-      <span class="chip px-4 py-1.5 text-sm font-medium">Food &amp; drink</span>
-      <span class="chip px-4 py-1.5 text-sm font-medium">Outdoor</span>
-      <span class="chip px-4 py-1.5 text-sm font-medium">Festivals</span>
-      <span class="chip px-4 py-1.5 text-sm font-medium">Hidden gems</span>
-    </div>
+<!-- What readers receive + sample preview, centered like the hero -->
+<section class="max-w-5xl mx-auto px-5 text-center">
+  <h2 class="font-display font-semibold text-3xl inline-flex items-center gap-3">
+    <!-- leaf sprig doodle -->
+    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true" class="shrink-0">
+      <path d="M6 26 C 10 16 16 9 25 4" stroke="var(--forest)" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M12 17 C 9 14 8 10 9 6 C 13 8 15 11 15 15 Z" fill="var(--sage)"/>
+      <path d="M17 12 C 17 8 19 5 23 3 C 24 7 22 11 19 13 Z" fill="var(--terracotta)" opacity=".8"/>
+    </svg>
+    What you'll get
+  </h2>
+  <p class="mt-3 text-[color:var(--stone)] max-w-2xl mx-auto">
+    One short, scannable email: the weekend's best local happenings, hand-picked and organized —
+    no digging through twelve different calendars.
+  </p>
+
+  <!-- category signs, hung slightly crooked like a community board -->
+  <div class="mt-7 flex flex-wrap justify-center gap-x-3 gap-y-4 max-w-3xl mx-auto">
+    <span class="tag-sign" style="--tilt:-2deg; background: var(--mustard); color: var(--charcoal);">Markets</span>
+    <span class="tag-sign" style="--tilt:1.5deg; background: #5A7385; color: #fff;">Live music</span>
+    <span class="tag-sign" style="--tilt:-1deg; background: var(--terracotta-deep); color: #fff;">Family fun</span>
+    <span class="tag-sign" style="--tilt:2deg; background: var(--sage); color: var(--charcoal);">Free things to do</span>
+    <span class="tag-sign" style="--tilt:-1.5deg; background: var(--forest); color: var(--cream);">Date night</span>
+    <span class="tag-sign" style="--tilt:1deg; background: var(--terracotta-deep); color: #fff;">Food &amp; drink</span>
+    <span class="tag-sign" style="--tilt:-2deg; background: var(--sage); color: var(--charcoal);">Outdoor</span>
+    <span class="tag-sign" style="--tilt:2deg; background: var(--mustard); color: var(--charcoal);">Festivals</span>
+    <span class="tag-sign" style="--tilt:-1deg; background: #5A7385; color: #fff;">Hidden gems</span>
   </div>
 
-  <div class="mt-10 lg:mt-0">
-    <p class="text-xs font-bold uppercase tracking-widest text-[color:var(--stone)]">A taste of Thursday</p>
-    <div class="card card-cream mt-3 p-6">
-      <span class="signage" style="padding: 2px 10px; font-size: 11px;">★ Top pick</span>
-      <div class="mt-4 pb-4 border-b border-dashed border-[color:var(--sage)]">
-        <p class="font-semibold text-lg leading-snug">Saturday Morning Farmers Market</p>
-        <p class="text-sm text-[color:var(--stone)] mt-0.5">
-          Saturday, 8:00 AM · Downtown Bloomington · <span class="text-[color:var(--forest)] font-semibold">Free</span>
-        </p>
-        <p class="mt-1.5 text-[15px]">An easy Saturday morning pick for local food, vendors, and a walk downtown.</p>
+  <p class="text-xs font-bold uppercase tracking-widest text-[color:var(--stone)] mt-14">A taste of Thursday</p>
+
+  <!-- Phone peeking into the page: your inbox, Thursday 7:02 AM -->
+  <div class="phone-fade mt-5 mx-auto" style="max-width: 380px;">
+    <div class="phone-mock text-left">
+      <!-- speaker pill -->
+      <div class="mx-auto mt-3 h-1.5 w-20 rounded-full" style="background: rgba(46,48,44,.18);"></div>
+
+      <!-- inbox header -->
+      <div class="px-5 pt-3 pb-4 mt-2 bg-white border-b border-[color:var(--linen)]">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center font-display font-bold text-sm shrink-0"
+               style="background: var(--forest); color: var(--cream);">B</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline justify-between gap-2">
+              <p class="font-semibold text-[15px] truncate">BloNo Digest</p>
+              <p class="text-xs text-[color:var(--stone)] shrink-0">Thu 7:02 AM</p>
+            </div>
+            <p class="text-[13px] text-[color:var(--stone)] truncate">Bloomington-Normal weekend events: Jul 17–19</p>
+          </div>
+        </div>
       </div>
-      <div class="mt-4">
-        <p class="font-semibold text-lg leading-snug">Jazz Night at the Castle Theatre</p>
-        <p class="text-sm text-[color:var(--stone)] mt-0.5">Saturday, 7:30 PM · Downtown Bloomington · $12</p>
-        <p class="mt-1.5 text-[15px]">A strong date-night option that doesn't require planning ahead.</p>
+
+      <!-- the email itself -->
+      <div class="px-5 py-4 text-center">
+        <p class="font-display font-bold text-[15px] text-[color:var(--forest)]">BloNo Digest<span class="text-[color:var(--terracotta)]">.</span></p>
+        <div class="border-t-2 border-dashed border-[color:var(--sage)] mt-2"></div>
+        <div class="-mt-0.5" style="letter-spacing: 18px; padding-left: 18px; font-size: 11px; line-height: 1;">
+          <span style="color:var(--terracotta);">▼</span><span style="color:var(--mustard);">▼</span><span style="color:var(--forest);">▼</span><span style="color:var(--dustblue);">▼</span><span style="color:var(--sage);">▼</span>
+        </div>
+        <p class="font-display font-bold text-lg text-[color:var(--forest)] mt-3 leading-snug">This Weekend Around Bloomington-Normal</p>
+        <p class="text-[11px] font-semibold uppercase tracking-widest text-[color:var(--stone)] mt-1.5">Jul 17 – Jul 19</p>
+        <p class="text-[13px] mt-2">Here are a few things worth leaving the house for.</p>
+
+        <div class="text-left mt-4">
+          <span class="signage" style="padding: 2px 10px; font-size: 10px;">★ Top picks</span>
+
+          <div class="card mt-2.5 p-3.5">
+            <p class="font-semibold text-[14.5px] leading-snug">Saturday Morning Farmers Market</p>
+            <p class="text-xs text-[color:var(--stone)] mt-0.5">
+              Sat, 8:00 AM · Downtown Bloomington · <span class="text-[color:var(--forest)] font-semibold">Free</span>
+            </p>
+            <p class="text-[13px] mt-1.5">An easy Saturday morning pick for local food, vendors, and a walk downtown.</p>
+          </div>
+
+          <div class="card mt-2.5 p-3.5">
+            <p class="font-semibold text-[14.5px] leading-snug">Jazz Night at the Castle Theatre</p>
+            <p class="text-xs text-[color:var(--stone)] mt-0.5">Sat, 7:30 PM · Downtown Bloomington · $12</p>
+            <p class="text-[13px] mt-1.5">Live horns, low lights, and the best $12 night out in town.</p>
+          </div>
+
+          <div class="card mt-2.5 p-3.5">
+            <p class="font-semibold text-[14.5px] leading-snug">Movie in the Park</p>
+            <p class="text-xs text-[color:var(--stone)] mt-0.5">Fri, 8:30 PM · Miller Park · Free</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -110,55 +147,70 @@
 <hr class="rule-stitch max-w-5xl mx-auto my-10">
 
 <!-- How it works -->
-<section class="max-w-5xl mx-auto px-5">
-  <h2 class="font-display font-semibold text-3xl flex items-center gap-3">
+<section class="max-w-5xl mx-auto px-5 text-center">
+  <h2 class="font-display font-semibold text-3xl inline-flex items-center gap-3">
     <!-- hand-drawn arrow doodle -->
     <svg width="32" height="26" viewBox="0 0 32 26" fill="none" aria-hidden="true" class="shrink-0">
       <path d="M3 20 C 10 8 20 6 28 10" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round" fill="none"/>
-      <path d="M23 6 L 28.5 10 L 23.5 14.5" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M23.5 4.5 L 28 10 L 21 11.5" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
     </svg>
     How it works
   </h2>
-  <ol class="mt-6 grid sm:grid-cols-3 gap-4">
-    <li class="card p-5">
-      <span class="font-display font-bold text-2xl text-[color:var(--terracotta)]">1</span>
-      <p class="font-semibold mt-2">We gather</p>
-      <p class="text-[15px] text-[color:var(--stone)] mt-1">Events come in from local calendars, libraries, parks, venues, and ticket sites all week.</p>
-    </li>
-    <li class="card p-5">
-      <span class="font-display font-bold text-2xl text-[color:var(--terracotta)]">2</span>
-      <p class="font-semibold mt-2">We choose</p>
-      <p class="text-[15px] text-[color:var(--stone)] mt-1">A person reviews everything and keeps only what's actually worth your weekend.</p>
-    </li>
-    <li class="card p-5">
-      <span class="font-display font-bold text-2xl text-[color:var(--terracotta)]">3</span>
-      <p class="font-semibold mt-2">You get one email</p>
-      <p class="text-[15px] text-[color:var(--stone)] mt-1">Thursday morning: the weekend, organized. Open it, pick something, go.</p>
-    </li>
-  </ol>
+
+  <div class="relative mt-12 max-w-4xl mx-auto">
+    <!-- hand-drawn hops between the steps (desktop only) -->
+    <svg class="hidden sm:block absolute -top-9 w-16" style="left: 30%;" viewBox="0 0 64 30" fill="none" aria-hidden="true">
+      <path d="M4 24 C 18 6 42 6 58 18" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 6" fill="none"/>
+      <path d="M53.2 14.4 L 58 18" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M54.5 11 L 58 18 L 50.5 17.2" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+    <svg class="hidden sm:block absolute -top-9 w-16" style="left: 63.5%;" viewBox="0 0 64 30" fill="none" aria-hidden="true">
+      <path d="M4 24 C 18 6 42 6 58 18" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 6" fill="none"/>
+      <path d="M53.2 14.4 L 58 18" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M54.5 11 L 58 18 L 50.5 17.2" stroke="var(--sage)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+
+    <ol class="grid sm:grid-cols-3 gap-6 sm:gap-8">
+      <li class="card p-6 pt-8 relative mt-5">
+        <span class="step-dot absolute -top-6 left-1/2 -translate-x-1/2" style="--tilt:-4deg; background: var(--terracotta-deep); color: #fff;">1</span>
+        <p class="font-semibold text-lg">We gather</p>
+        <p class="text-[15px] text-[color:var(--stone)] mt-1.5">Events come in from local calendars, libraries, parks, venues, and ticket sites all week.</p>
+      </li>
+      <li class="card p-6 pt-8 relative mt-5">
+        <span class="step-dot absolute -top-6 left-1/2 -translate-x-1/2" style="--tilt:3deg; background: var(--forest); color: var(--cream);">2</span>
+        <p class="font-semibold text-lg">We choose</p>
+        <p class="text-[15px] text-[color:var(--stone)] mt-1.5">A person reviews everything and keeps only what's actually worth your weekend.</p>
+      </li>
+      <li class="card p-6 pt-8 relative mt-5">
+        <span class="step-dot absolute -top-6 left-1/2 -translate-x-1/2" style="--tilt:-3deg; background: var(--mustard); color: var(--charcoal);">3</span>
+        <p class="font-semibold text-lg">You get one email</p>
+        <p class="text-[15px] text-[color:var(--stone)] mt-1.5">Thursday morning: the weekend, organized. Open it, pick something, go.</p>
+      </li>
+    </ol>
+  </div>
 </section>
 
-<!-- Coverage area -->
-<section class="max-w-5xl mx-auto px-5 mt-12">
-  <div class="card card-cream p-6 sm:flex items-start gap-5">
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true" class="shrink-0 mb-3 sm:mb-0">
-      <path d="M22 4 C14 4 8 10 8 18 c0 10 14 22 14 22 s14 -12 14 -22 c0 -8 -6 -14 -14 -14 z" stroke="var(--forest)" stroke-width="2" fill="var(--linen)"/>
-      <circle cx="22" cy="18" r="5" fill="var(--terracotta)"/>
-    </svg>
-    <div>
-      <h2 class="font-display font-semibold text-2xl">Coverage area</h2>
-      <p class="mt-1.5 text-[15px] text-[color:var(--stone)]">
-        Focused on <strong class="text-[color:var(--charcoal)]">Bloomington and Normal</strong>, plus Towanda, Hudson,
-        Carlock, Downs, Heyworth — and the occasional nearby thing worth the short drive. Just this corner of
-        Central Illinois, covered well.
-      </p>
-    </div>
+<!-- Coverage area: pinned-up notice on the community board -->
+<section class="max-w-5xl mx-auto px-5 mt-16 text-center">
+  <div class="max-w-2xl mx-auto rounded-2xl p-7 sm:p-8" style="background: #FFFDF6; border: 2px dashed var(--sage);">
+    <img src="{% static 'img/blonodigestlogo-128.png' %}" alt="" class="mx-auto h-16 w-auto">
+    <h2 class="font-display font-semibold text-2xl mt-3">Coverage area</h2>
+    <p class="mt-2 text-[15px] text-[color:var(--stone)]">
+      Focused on <strong class="text-[color:var(--charcoal)]">Bloomington and Normal</strong> — plus the towns worth the short drive:
+    </p>
+    <p class="mt-3 font-semibold text-[color:var(--forest)]">
+      Towanda <span class="text-[color:var(--terracotta)]">·</span> Hudson
+      <span class="text-[color:var(--terracotta)]">·</span> Carlock
+      <span class="text-[color:var(--terracotta)]">·</span> Downs
+      <span class="text-[color:var(--terracotta)]">·</span> Heyworth
+    </p>
+    <p class="mt-3 text-[15px] text-[color:var(--stone)]">Just this corner of Central Illinois, covered well.</p>
   </div>
 </section>
 
 <!-- FAQ -->
-<section class="max-w-5xl mx-auto px-5 mt-12">
-  <h2 class="font-display font-semibold text-3xl flex items-center gap-3">
+<section class="max-w-5xl mx-auto px-5 mt-16 text-center">
+  <h2 class="font-display font-semibold text-3xl inline-flex items-center gap-3">
     <!-- star doodle -->
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true" class="shrink-0">
       <path d="M14 3 L16.4 10.8 L24.5 11 L18 15.9 L20.3 23.7 L14 19 L7.7 23.7 L10 15.9 L3.5 11 L11.6 10.8 Z"
@@ -166,7 +218,7 @@
     </svg>
     Questions, answered
   </h2>
-  <div class="mt-4 grid sm:grid-cols-2 gap-3 items-start">
+  <div class="mt-6 grid sm:grid-cols-2 gap-3 items-start text-left">
     <details class="card p-4">
       <summary class="font-semibold cursor-pointer">Is this only for Bloomington-Normal?</summary>
       <p class="mt-2 text-[15px] text-[color:var(--stone)]">Yes — this is focused on Bloomington-Normal and nearby areas.</p>

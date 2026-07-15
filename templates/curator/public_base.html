@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}BloNo Digest — Bloomington-Normal weekend plans{% endblock %}</title>
   <meta name="description" content="Bloomington-Normal weekend plans, sent every Thursday. A friendly weekly guide to local events, family activities, date ideas, music, markets, food, and nearby things worth doing.">
+  <link rel="icon" type="image/png" href="{% static 'img/blonodigestlogo-64.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/blonodigestlogo-180.png' %}">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -93,6 +95,51 @@
     }
     .chip:hover { background: var(--linen); border-color: var(--forest); }
 
+    /* Market-sign tag — colored signage hung slightly crooked, like stickers
+       on a community board (spec §9). Set --tilt per tag. */
+    .tag-sign {
+      display: inline-block;
+      border-radius: 10px;
+      padding: 7px 18px;
+      font-weight: 600;
+      font-size: 15px;
+      box-shadow: 0 2px 6px rgba(46, 48, 44, 0.14);
+      transform: rotate(var(--tilt, 0deg));
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .tag-sign:hover {
+      transform: rotate(0deg) translateY(-2px);
+      box-shadow: 0 4px 10px rgba(46, 48, 44, 0.18);
+    }
+
+    /* Step sticker-dot: colored numbered disc, hung slightly crooked */
+    .step-dot {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 46px; height: 46px; border-radius: 999px;
+      font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 22px;
+      transform: rotate(var(--tilt, 0deg));
+      box-shadow: 0 2px 6px rgba(46, 48, 44, 0.18);
+    }
+
+    details summary::marker { color: var(--terracotta); }
+
+    /* Phone mockup: top half of a phone showing the digest email; the
+       bottom dissolves into the page via a mask fade. */
+    .phone-mock {
+      border: 9px solid var(--charcoal);
+      border-bottom: none;
+      border-radius: 42px 42px 0 0;
+      background: var(--cream);
+      overflow: hidden;
+      box-shadow: 0 12px 32px rgba(46, 48, 44, 0.16);
+    }
+    .phone-fade {
+      max-height: 460px;
+      overflow: hidden;
+      -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 97%);
+      mask-image: linear-gradient(to bottom, black 55%, transparent 97%);
+    }
+
     .input-field {
       background: #fff;
       border: 1px solid var(--linen);
@@ -129,8 +176,9 @@
 <body class="min-h-screen flex flex-col">
   <header class="border-b border-[color:var(--linen)]">
     <div class="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
-      <a href="/" class="font-display font-bold text-xl tracking-tight text-[color:var(--forest)]">
-        BloNo Digest<span class="text-[color:var(--terracotta)]">.</span>
+      <a href="/" class="flex items-center gap-2.5 font-display font-bold text-xl tracking-tight text-[color:var(--forest)]">
+        <img src="{% static 'img/blonodigestlogo-128.png' %}" alt="" class="h-8 w-auto">
+        <span>BloNo Digest<span class="text-[color:var(--terracotta)]">.</span></span>
       </a>
       <span class="hidden sm:inline text-sm text-[color:var(--stone)]">Bloomington–Normal, Illinois</span>
     </div>

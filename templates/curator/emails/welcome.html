@@ -1,4 +1,4 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -9,7 +9,9 @@
   <div style="max-width:600px; margin:0 auto; padding:32px 16px;">
 
     <div style="text-align:center;">
-      <p style="font-family: Georgia, 'Times New Roman', serif; font-size:20px; font-weight:bold; color:#294C3A; margin:0;">
+      <img src="{{ site_base_url }}{% static 'img/blonodigestlogo-128.png' %}" alt="BloNo Digest" width="42"
+           style="width:42px; height:auto; display:inline-block;">
+      <p style="font-family: Georgia, 'Times New Roman', serif; font-size:20px; font-weight:bold; color:#294C3A; margin:6px 0 0;">
         BloNo Digest<span style="color:#C96F4A;">.</span>
       </p>
       <div style="margin:18px 0 0;">
