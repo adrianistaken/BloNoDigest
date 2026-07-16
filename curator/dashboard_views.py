@@ -124,10 +124,39 @@ def events(request):
     if source_slug:
         queryset = queryset.filter(primary_source__slug=source_slug)
 
-    queryset = queryset.order_by("starts_at")
+    # Column sorting: ?sort=<key>&dir=asc|desc, whitelisted to real fields
+    sortable = {
+        "title": "canonical_title",
+        "when": "starts_at",
+        "where": "city",
+        "source": "primary_source__name",
+        "score": "quality_score",
+        "status": "status",
+    }
+    sort = request.GET.get("sort", "when")
+    if sort not in sortable:
+        sort = "when"
+    direction = "desc" if request.GET.get("dir") == "desc" else "asc"
+    order = sortable[sort] if direction == "asc" else f"-{sortable[sort]}"
+    queryset = queryset.order_by(order, "starts_at")
+
+    # Prebuilt header links that preserve filters and flip direction on re-click
+    base_params = {"status": status, "filter": quick, "source": source_slug}
+    filter_query = "&".join(f"{k}={v}" for k, v in base_params.items() if v)
+    sort_columns = {}
+    for key in sortable:
+        next_dir = "desc" if (sort == key and direction == "asc") else "asc"
+        query = f"sort={key}&dir={next_dir}"
+        sort_columns[key] = {
+            "url": f"?{filter_query}&{query}" if filter_query else f"?{query}",
+            "arrow": ("▲" if direction == "asc" else "▼") if sort == key else "",
+        }
+
     page = Paginator(queryset, 50).get_page(request.GET.get("page"))
     context = {
         "page": page,
+        "result_count": page.paginator.count,
+        "sort_columns": sort_columns,
         "statuses": Event.Status.choices,
         "sources": region.sources.order_by("name"),
         "current": {"status": status, "filter": quick, "source": source_slug},

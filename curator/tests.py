@@ -515,6 +515,32 @@ class DashboardAuthTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("login", response["Location"])
 
+    def test_events_sorting_and_count(self):
+        region = make_region()
+        base = timezone.now() + timedelta(days=2)
+        low = Event.objects.create(
+            region=region, canonical_title="Low Score", starts_at=base,
+            quality_score=2, source_url="https://x.com/a", city="Normal",
+        )
+        high = Event.objects.create(
+            region=region, canonical_title="High Score", starts_at=base + timedelta(hours=1),
+            quality_score=15, source_url="https://x.com/b", city="Bloomington",
+        )
+        User.objects.create_superuser("admin2", "a2@example.com", "pass12345")
+        self.client.login(username="admin2", password="pass12345")
+
+        response = self.client.get("/admin-dashboard/events/?sort=score&dir=desc")
+        events = list(response.context["page"])
+        self.assertEqual([e.pk for e in events], [high.pk, low.pk])
+        self.assertEqual(response.context["result_count"], 2)
+
+        response = self.client.get("/admin-dashboard/events/?sort=score&dir=asc")
+        events = list(response.context["page"])
+        self.assertEqual([e.pk for e in events], [low.pk, high.pk])
+
+        response = self.client.get("/admin-dashboard/events/?sort=evil_column")
+        self.assertEqual(response.status_code, 200)  # bad sort keys fall back safely
+
     def test_staff_can_load_dashboard(self):
         make_region()
         User.objects.create_superuser("admin", "admin@example.com", "pass12345")
