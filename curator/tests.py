@@ -466,6 +466,24 @@ class DigestTests(TestCase):
         de.custom_blurb = "x" * 300
         self.assertEqual(len(de.blurb), 300)  # admin's own words never truncated
 
+    def test_display_title_truncates_unless_custom(self):
+        from .models import DigestEvent
+
+        long_title = (
+            "Exhibit Opening: More Than a Game! A Community History of Baseball "
+            "& Softball presented by BEER NUTS Brand Snacks & The Shirk Family"
+        )
+        event = self._event(long_title, day_offset=1)
+        issue = generate_digest_issue("bloomington-normal")
+        de = issue.digest_events.get(event=event)
+        self.assertLessEqual(len(de.display_title), DigestEvent.TITLE_MAX_CHARS + 1)
+        self.assertTrue(de.display_title.endswith("…"))
+        de.custom_title = "More Than a Game! Baseball & Softball Exhibit Opening"
+        self.assertEqual(de.display_title, de.custom_title)  # curator title verbatim
+        short = self._event("Jazz Night", day_offset=1)
+        de_short = issue.digest_events.model(digest_issue=issue, event=short, section="top_picks")
+        self.assertEqual(de_short.display_title, "Jazz Night")  # short titles untouched
+
     def test_pick_section_worth_the_drive(self):
         event = self._event("Peoria Fest", city="Peoria", categories=["festival"])
         self.assertEqual(pick_section(event), "worth_the_drive")

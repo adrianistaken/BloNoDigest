@@ -63,7 +63,7 @@
           <span style="font-family: Georgia, serif; font-size:16px; font-weight:bold; color:#294C3A;">{{ label }}</span>
           {% endif %}
         </td>
-        <td width="100%" style="border-top:2px dashed #A8B89A;"></td>
+        <td width="100%" style="vertical-align:middle;"><div style="border-top:2px dashed #A8B89A; line-height:0; font-size:0;">&nbsp;</div></td>
       </tr></table>
 
       {% for de in digest_events %}
@@ -72,7 +72,7 @@
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
           <td style="vertical-align:top;">
             <p style="font-size:16px; font-weight:600; margin:0; line-height:1.3;">
-              {% if de.event.source_url %}<a href="{{ de.event.source_url }}" style="color:#2E302C; text-decoration:none;">{{ de.event.canonical_title }}</a>{% else %}{{ de.event.canonical_title }}{% endif %}
+              {% if de.event.source_url %}<a href="{{ de.event.source_url }}" style="color:#2E302C; text-decoration:none;">{{ de.display_title }}</a>{% else %}{{ de.display_title }}{% endif %}
             </p>
             <p style="font-size:13px; color:#6F6A60; margin:3px 0 0;">
               {{ de.event.starts_at|date:"D, M j" }}{% if de.event.time_is_known %} · {{ de.event.starts_at|date:"g:i A" }}{% endif %} · {{ de.event.location_display }}{% if de.event.price_text %} · <span style="color:#294C3A; font-weight:600;">{{ de.event.price_text }}</span>{% endif %}

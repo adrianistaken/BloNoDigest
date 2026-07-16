@@ -330,6 +330,7 @@ class DigestEvent(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="digest_appearances")
     section = models.CharField(max_length=30, choices=DIGEST_SECTIONS)
     position = models.PositiveIntegerField(default=0)
+    custom_title = models.CharField(max_length=300, blank=True)
     custom_blurb = models.TextField(blank=True)
     include_in_email = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -341,6 +342,21 @@ class DigestEvent(models.Model):
         ]
 
     BLURB_MAX_CHARS = 110
+    TITLE_MAX_CHARS = 75
+
+    @property
+    def display_title(self):
+        """Curator-written titles run verbatim; otherwise long source titles
+        get a word-boundary cut so email cards stay scannable."""
+        if self.custom_title:
+            return self.custom_title
+        title = (self.event.canonical_title or "").strip()
+        if len(title) <= self.TITLE_MAX_CHARS:
+            return title
+        cut = title[: self.TITLE_MAX_CHARS]
+        if " " in cut:
+            cut = cut[: cut.rfind(" ")]
+        return cut.rstrip(".,;:!-–—") + "…"
 
     @property
     def blurb(self):

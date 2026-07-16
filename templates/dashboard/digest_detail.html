@@ -91,13 +91,14 @@
             </div>
           </div>
           <details class="mt-1">
-            <summary class="text-xs text-slate-500 cursor-pointer">blurb / section</summary>
+            <summary class="text-xs text-slate-500 cursor-pointer">title / blurb / section</summary>
             <form method="post" class="mt-2 space-y-2">
               {% csrf_token %}
               <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
+              <input name="custom_title" value="{{ de.custom_title }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom title (defaults to event title, auto-shortened if long)">
               <textarea name="custom_blurb" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom blurb (defaults to event description)">{{ de.custom_blurb }}</textarea>
               <div class="flex gap-2">
-                <button name="action" value="set_blurb" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Save blurb</button>
+                <button name="action" value="set_blurb" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Save title &amp; blurb</button>
                 <select name="section" class="border rounded px-2 py-1 text-xs">
                   {% for value, section_label in section_choices %}
                     <option value="{{ value }}" {% if de.section == value %}selected{% endif %}>{{ section_label }}</option>

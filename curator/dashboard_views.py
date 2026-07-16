@@ -292,8 +292,9 @@ def _digest_event_action(request, issue, action):
             digest_event.section = section
             digest_event.save(update_fields=["section"])
     elif action == "set_blurb":
+        digest_event.custom_title = request.POST.get("custom_title", "").strip()[:300]
         digest_event.custom_blurb = request.POST.get("custom_blurb", "")
-        digest_event.save(update_fields=["custom_blurb"])
+        digest_event.save(update_fields=["custom_title", "custom_blurb"])
     elif action == "remove":
         digest_event.include_in_email = False
         digest_event.save(update_fields=["include_in_email"])
