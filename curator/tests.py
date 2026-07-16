@@ -484,9 +484,79 @@ class DigestTests(TestCase):
         de_short = issue.digest_events.model(digest_issue=issue, event=short, section="top_picks")
         self.assertEqual(de_short.display_title, "Jazz Night")  # short titles untouched
 
+    def test_display_location_drops_core_city_keeps_others(self):
+        from .models import DigestEvent
+
+        local = self._event("Museum Day", day_offset=1, venue_name="McLean County Museum of History")
+        away = self._event("Chicago Show", day_offset=1, city="Chicago", venue_name="Joy District")
+        bare = self._event("Somewhere Fest", day_offset=1)  # city only, no venue
+        issue = generate_digest_issue("bloomington-normal")
+
+        de_local = issue.digest_events.get(event=local)
+        self.assertEqual(de_local.display_location, "McLean County Museum of History")
+        de_away = issue.digest_events.get(event=away)
+        self.assertEqual(de_away.display_location, "Joy District, Chicago")
+        de_bare = issue.digest_events.get(event=bare)
+        self.assertEqual(de_bare.display_location, "Bloomington")
+        de_local.custom_location = "The History Museum, downtown"
+        self.assertEqual(de_local.display_location, "The History Museum, downtown")
+
     def test_pick_section_worth_the_drive(self):
         event = self._event("Peoria Fest", city="Peoria", categories=["festival"])
         self.assertEqual(pick_section(event), "worth_the_drive")
+
+    def test_sort_section_orders_chronologically(self):
+        late = self._event("Evening Show", day_offset=1, hour=20, categories=["music"])
+        early = self._event("Morning Market", day_offset=1, hour=8, categories=["market"])
+        issue = generate_digest_issue("bloomington-normal")
+        # both land in top_picks; force a non-chronological order first
+        des = list(issue.digest_events.filter(section="top_picks"))
+        self.assertEqual(len(des), 2)
+
+        User.objects.create_superuser("sorter", "s@example.com", "pass12345")
+        self.client.login(username="sorter", password="pass12345")
+        self.client.post(
+            f"/admin-dashboard/digests/{issue.pk}/",
+            {"action": "sort_section", "section": "top_picks"},
+        )
+        ordered = list(
+            issue.digest_events.filter(section="top_picks").order_by("position").select_related("event")
+        )
+        self.assertEqual(
+            [de.event.canonical_title for de in ordered], ["Morning Market", "Evening Show"]
+        )
+
+    def test_move_skips_removed_neighbors_and_survives_ties(self):
+        from .models import DigestEvent
+
+        a = self._event("Event A", day_offset=1, hour=9)
+        b = self._event("Event B", day_offset=1, hour=10)
+        c = self._event("Event C", day_offset=1, hour=11)
+        issue = generate_digest_issue("bloomington-normal")
+        de_a = issue.digest_events.get(event=a)
+        de_b = issue.digest_events.get(event=b)
+        de_c = issue.digest_events.get(event=c)
+        # force visible order A, B, C with B removed, and a position TIE on A/C
+        DigestEvent.objects.filter(pk=de_a.pk).update(position=0, section="top_picks")
+        DigestEvent.objects.filter(pk=de_b.pk).update(position=1, section="top_picks", include_in_email=False)
+        DigestEvent.objects.filter(pk=de_c.pk).update(position=0, section="top_picks")
+
+        User.objects.create_superuser("mover", "m@example.com", "pass12345")
+        self.client.login(username="mover", password="pass12345")
+        # moving the FIRST visible item down must swap it with the next VISIBLE
+        # item (C), not the hidden removed one (B)
+        first_visible = issue.sections_with_events()[0][2][0]
+        self.client.post(
+            f"/admin-dashboard/digests/{issue.pk}/",
+            {"action": "move_down", "digest_event_id": first_visible.pk},
+        )
+        visible_after = [de.pk for de in issue.sections_with_events()[0][2]]
+        self.assertEqual(visible_after[1], first_visible.pk)  # it actually moved
+        positions = list(
+            issue.digest_events.filter(section="top_picks", include_in_email=True)
+            .order_by("position").values_list("position", flat=True)
+        )
+        self.assertEqual(positions, sorted(set(positions)))  # ties gone
 
     def test_send_digest_records_and_marks_sent(self):
         self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])

@@ -320,7 +320,7 @@ class DigestIssue(TimestampedModel):
     def sections_with_events(self):
         """Ordered [(section_key, label, [DigestEvent...]), ...] skipping empty sections."""
         by_section = {}
-        for de in self.digest_events.filter(include_in_email=True).select_related("event").order_by("position"):
+        for de in self.digest_events.filter(include_in_email=True).select_related("event").order_by("position", "id"):
             by_section.setdefault(de.section, []).append(de)
         return [(key, label, by_section[key]) for key, label in DIGEST_SECTIONS if key in by_section]
 
@@ -331,6 +331,7 @@ class DigestEvent(models.Model):
     section = models.CharField(max_length=30, choices=DIGEST_SECTIONS)
     position = models.PositiveIntegerField(default=0)
     custom_title = models.CharField(max_length=300, blank=True)
+    custom_location = models.CharField(max_length=300, blank=True)
     custom_blurb = models.TextField(blank=True)
     include_in_email = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -357,6 +358,23 @@ class DigestEvent(models.Model):
         if " " in cut:
             cut = cut[: cut.rfind(" ")]
         return cut.rstrip(".,;:!-–—") + "…"
+
+    # City is implied for local venues in a local digest; it only earns its
+    # spot on the meta line when the event is outside the core towns.
+    CORE_TOWNS = {"bloomington", "normal"}
+
+    @property
+    def display_location(self):
+        if self.custom_location:
+            return self.custom_location
+        event = self.event
+        venue = (event.venue_name or "").strip()
+        city = (event.city or "").strip()
+        if venue:
+            if city and city.lower() not in self.CORE_TOWNS:
+                return f"{venue}, {city}"
+            return venue
+        return event.location_display
 
     @property
     def blurb(self):

@@ -7,7 +7,7 @@
 {% for de in digest_events %}
 {{ de.event.starts_at|date:"l, F j" }}{% if de.event.time_is_known %}, {{ de.event.starts_at|date:"g:i A" }}{% endif %}
 {{ de.display_title }}
-{{ de.event.location_display }}{% if de.event.price_text %} · {{ de.event.price_text }}{% endif %}
+{{ de.display_location }}{% if de.event.price_text %} · {{ de.event.price_text }}{% endif %}
 {% if de.blurb %}{{ de.blurb }}
 {% endif %}{% if de.event.source_url %}Details: {{ de.event.source_url }}
 {% endif %}

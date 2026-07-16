@@ -69,10 +69,16 @@
 
 <div class="grid lg:grid-cols-2 gap-5 mt-5 items-start">
   <!-- Builder -->
-  <div class="space-y-5">
+  <div class="space-y-5" id="builder-panel">
     {% for section_key, label, digest_events in sections %}
     <div class="bg-white rounded shadow">
-      <p class="px-4 py-2 font-bold bg-slate-50 border-b">{{ label }}</p>
+      <div class="px-4 py-2 font-bold bg-slate-50 border-b flex items-center justify-between">
+        {{ label }}
+        <form method="post" class="js-live">{% csrf_token %}
+          <input type="hidden" name="section" value="{{ section_key }}">
+          <button name="action" value="sort_section" class="text-xs font-normal bg-slate-200 hover:bg-slate-300 px-2 py-0.5 rounded" title="Reorder this section chronologically">⏱ sort by time</button>
+        </form>
+      </div>
       <ul class="divide-y divide-slate-100">
         {% for de in digest_events %}
         <li class="p-3 text-sm">
@@ -82,7 +88,7 @@
               <p class="text-xs text-slate-500">{{ de.event.starts_at|date:"D M j, g:i A" }} · {{ de.event.location_display }} · score {{ de.event.quality_score }}</p>
             </div>
             <div class="flex gap-1 shrink-0">
-              <form method="post">{% csrf_token %}
+              <form method="post" class="js-live">{% csrf_token %}
                 <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
                 <button name="action" value="move_up" class="bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded" title="Move up">↑</button>
                 <button name="action" value="move_down" class="bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded" title="Move down">↓</button>
@@ -90,12 +96,13 @@
               </form>
             </div>
           </div>
-          <details class="mt-1">
+          <details class="mt-1" data-de="{{ de.pk }}">
             <summary class="text-xs text-slate-500 cursor-pointer">title / blurb / section</summary>
-            <form method="post" class="mt-2 space-y-2">
+            <form method="post" class="mt-2 space-y-2 js-live">
               {% csrf_token %}
               <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
               <input name="custom_title" value="{{ de.custom_title }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom title (defaults to event title, auto-shortened if long)">
+              <input name="custom_location" value="{{ de.custom_location }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom location (defaults to venue; city added only outside Bloomington-Normal)">
               <textarea name="custom_blurb" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom blurb (defaults to event description)">{{ de.custom_blurb }}</textarea>
               <div class="flex gap-2">
                 <button name="action" value="set_blurb" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Save title &amp; blurb</button>
@@ -125,7 +132,7 @@
         {% for de in removed %}
         <li class="p-3 text-sm flex justify-between items-center">
           <span class="text-slate-500 line-through">{{ de.event.canonical_title|truncatechars:60 }}</span>
-          <form method="post">{% csrf_token %}
+          <form method="post" class="js-live">{% csrf_token %}
             <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
             <button name="action" value="restore" class="bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded text-xs">restore</button>
           </form>
@@ -139,7 +146,37 @@
   <!-- Email preview -->
   <div class="bg-white rounded shadow">
     <p class="px-4 py-2 font-bold bg-slate-50 border-b">Email preview</p>
-    <iframe src="{% url 'dashboard:digest_preview' issue.pk %}" class="w-full bg-white" style="height: 80vh" title="Digest email preview"></iframe>
+    <iframe id="preview-frame" src="{% url 'dashboard:digest_preview' issue.pk %}" class="w-full bg-white" style="height: 80vh" title="Digest email preview"></iframe>
   </div>
 </div>
+<script>
+// Builder actions post in the background and refresh only the builder panel
+// and the email preview — no page reload, scroll position preserved.
+document.addEventListener('submit', async (e) => {
+  const form = e.target.closest('form.js-live');
+  if (!form) return;
+  e.preventDefault();
+  const data = new FormData(form);
+  if (e.submitter && e.submitter.name) data.append(e.submitter.name, e.submitter.value);
+  const openEditors = [...document.querySelectorAll('#builder-panel details[open]')].map(d => d.dataset.de);
+  try {
+    const resp = await fetch(window.location.href, { method: 'POST', body: data });
+    if (!resp.ok) throw new Error(resp.status);
+    const doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
+    const fresh = doc.getElementById('builder-panel');
+    const panel = document.getElementById('builder-panel');
+    if (fresh && panel) {
+      panel.innerHTML = fresh.innerHTML;
+      openEditors.forEach(id => {
+        const d = panel.querySelector(`details[data-de="${id}"]`);
+        if (d) d.open = true;
+      });
+    }
+    const frame = document.getElementById('preview-frame');
+    if (frame) frame.src = frame.src;
+  } catch (err) {
+    form.submit(); // graceful fallback: normal page-refresh post
+  }
+});
+</script>
 {% endblock %}
