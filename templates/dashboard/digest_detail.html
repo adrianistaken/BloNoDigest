@@ -71,14 +71,14 @@
   <!-- Builder -->
   <div class="space-y-5" id="builder-panel">
     {% for section_key, label, digest_events in sections %}
-    <div class="bg-white rounded shadow">
-      <div class="px-4 py-2 font-bold bg-slate-50 border-b flex items-center justify-between">
-        {{ label }}
-        <form method="post" class="js-live">{% csrf_token %}
+    <details open data-section="{{ section_key }}" class="bg-white rounded shadow">
+      <summary class="px-4 py-2 font-bold bg-slate-50 border-b flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+        <span><span class="text-slate-400 mr-1 inline-block transition-transform details-chevron">▸</span>{{ label }} <span class="text-xs font-normal text-slate-400">({{ digest_events|length }})</span></span>
+        <form method="post" class="js-live" onclick="event.stopPropagation()">{% csrf_token %}
           <input type="hidden" name="section" value="{{ section_key }}">
           <button name="action" value="sort_section" class="text-xs font-normal bg-slate-200 hover:bg-slate-300 px-2 py-0.5 rounded" title="Reorder this section chronologically">⏱ sort by time</button>
         </form>
-      </div>
+      </summary>
       <ul class="divide-y divide-slate-100">
         {% for de in digest_events %}
         <li class="p-3 text-sm">
@@ -118,7 +118,7 @@
         </li>
         {% endfor %}
       </ul>
-    </div>
+    </details>
     {% empty %}
     <div class="bg-white rounded shadow p-6 text-center text-slate-500">
       No events in this digest. Approve events, then regenerate a draft.
@@ -126,8 +126,10 @@
     {% endfor %}
 
     {% if removed %}
-    <div class="bg-white rounded shadow">
-      <p class="px-4 py-2 font-bold bg-slate-50 border-b text-slate-500">Removed from email</p>
+    <details data-section="__removed" class="bg-white rounded shadow">
+      <summary class="px-4 py-2 font-bold bg-slate-50 border-b text-slate-500 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+        <span class="text-slate-400 mr-1 inline-block transition-transform details-chevron">▸</span>Removed from email <span class="text-xs font-normal text-slate-400">({{ removed|length }})</span>
+      </summary>
       <ul class="divide-y divide-slate-100">
         {% for de in removed %}
         <li class="p-3 text-sm flex justify-between items-center">
@@ -139,16 +141,19 @@
         </li>
         {% endfor %}
       </ul>
-    </div>
+    </details>
     {% endif %}
   </div>
 
-  <!-- Email preview -->
-  <div class="bg-white rounded shadow">
+  <!-- Email preview: sticky so it stays visible while scrolling the builder -->
+  <div class="bg-white rounded shadow lg:sticky lg:top-4">
     <p class="px-4 py-2 font-bold bg-slate-50 border-b">Email preview</p>
     <iframe id="preview-frame" src="{% url 'dashboard:digest_preview' issue.pk %}" class="w-full bg-white" style="height: 80vh" title="Digest email preview"></iframe>
   </div>
 </div>
+<style>
+  details[open] > summary .details-chevron { transform: rotate(90deg); }
+</style>
 <script>
 // Builder actions post in the background and refresh only the builder panel
 // and the email preview — no page reload, scroll position preserved.
@@ -158,7 +163,8 @@ document.addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = new FormData(form);
   if (e.submitter && e.submitter.name) data.append(e.submitter.name, e.submitter.value);
-  const openEditors = [...document.querySelectorAll('#builder-panel details[open]')].map(d => d.dataset.de);
+  const openEditors = [...document.querySelectorAll('#builder-panel details[data-de][open]')].map(d => d.dataset.de);
+  const closedSections = [...document.querySelectorAll('#builder-panel details[data-section]:not([open])')].map(d => d.dataset.section);
   try {
     const resp = await fetch(window.location.href, { method: 'POST', body: data });
     if (!resp.ok) throw new Error(resp.status);
@@ -170,6 +176,10 @@ document.addEventListener('submit', async (e) => {
       openEditors.forEach(id => {
         const d = panel.querySelector(`details[data-de="${id}"]`);
         if (d) d.open = true;
+      });
+      closedSections.forEach(key => {
+        const d = panel.querySelector(`details[data-section="${key}"]`);
+        if (d) d.open = false;
       });
     }
     const frame = document.getElementById('preview-frame');
