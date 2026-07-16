@@ -22,8 +22,8 @@
   <h1 class="rise rise-2 font-display font-bold text-4xl sm:text-[3.2rem] leading-[1.08] mt-7 max-w-3xl mx-auto">
     Bloomington-Normal weekend plans, sent every <span class="paint-underline">Thursday.</span>
   </h1>
-  <p class="rise rise-3 mt-5 text-lg sm:text-xl text-[color:var(--stone)] leading-relaxed max-w-2xl mx-auto">
-    For people who realize they still need weekend plans.
+  <p class="rise rise-3 mt-5 text-lg sm:text-xl text-[color:var(--stone)] leading-relaxed max-w-2xl mx-auto min-h-[3.7rem] sm:min-h-[1.9rem]">
+    For people who <span id="tagline-swap" style="transition: opacity .45s ease, width .4s ease;">didn't plan ahead.</span>
   </p>
 
   <div id="signup" class="rise rise-4 card p-6 sm:p-7 relative max-w-xl mx-auto mt-9 text-left">
@@ -195,16 +195,14 @@
   <div class="max-w-2xl mx-auto rounded-2xl p-7 sm:p-8" style="background: #FFFDF6; border: 2px dashed var(--sage);">
     <img src="{% static 'img/blonodigestlogo-128.png' %}" alt="" class="mx-auto h-16 w-auto">
     <h2 class="font-display font-semibold text-2xl mt-3">Coverage area</h2>
-    <p class="mt-2 text-[15px] text-[color:var(--stone)]">
-      Focused on <strong class="text-[color:var(--charcoal)]">Bloomington and Normal</strong> — plus the towns worth the short drive:
-    </p>
-    <p class="mt-3 font-semibold text-[color:var(--forest)]">
+    <p class="mt-2.5 text-[16px]"><strong class="text-[color:var(--charcoal)]">Bloomington and Normal</strong><span class="text-[color:var(--stone)]">, covered well.</span></p>
+    <p class="mt-2.5 text-sm font-semibold text-[color:var(--forest)]">
       Towanda <span class="text-[color:var(--terracotta)]">·</span> Hudson
       <span class="text-[color:var(--terracotta)]">·</span> Carlock
       <span class="text-[color:var(--terracotta)]">·</span> Downs
       <span class="text-[color:var(--terracotta)]">·</span> Heyworth
     </p>
-    <p class="mt-3 text-[15px] text-[color:var(--stone)]">Just this corner of Central Illinois, covered well.</p>
+    <p class="mt-2.5 text-[15px] text-[color:var(--stone)]">Neighbor towns included when something's worth the drive.</p>
   </div>
 </section>
 
@@ -268,4 +266,61 @@
     <p class="mt-3 text-sm" style="color: var(--sage);">Free. Sent every Thursday. Unsubscribe anytime.</p>
   </div>
 </section>
+
+<script>
+// Rotating tagline: the stem stays put, only the punchline gently fades —
+// like re-chalking the end of a sandwich-board sign. No cursor, no typing.
+// On wider screens the line's width glides to the next phrase's length
+// while the text is invisible, so nothing ever jumps.
+(() => {
+  const lines = [
+    "didn't plan ahead.",
+    "realize they still need weekend plans.",
+    "just found out it's already Thursday.",
+    "keep saying \u201cwe should get out more.\u201d",
+    "would rather not check twelve calendars.",
+    "always hear about the good stuff on Monday.",
+    "want the plans without the planning.",
+    "said \u201cnext weekend\u201d three weekends ago.",
+    "love their couch but could be convinced.",
+    "have a group chat that never decides anything.",
+  ];
+  const el = document.getElementById('tagline-swap');
+  if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const wide = window.matchMedia('(min-width: 640px)');
+
+  const measure = (text) => {
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute; visibility:hidden; white-space:nowrap;';
+    el.parentElement.appendChild(probe);
+    probe.textContent = text;
+    const w = probe.getBoundingClientRect().width;
+    probe.remove();
+    return w;
+  };
+
+  if (wide.matches) {
+    // pin the span so its width becomes animatable
+    el.style.display = 'inline-block';
+    el.style.whiteSpace = 'nowrap';
+    el.style.overflow = 'hidden';
+    el.style.verticalAlign = 'bottom';
+    el.style.width = measure(el.textContent) + 'px';
+  }
+
+  let i = 0;
+  setInterval(() => {
+    const next = lines[(i + 1) % lines.length];
+    el.style.opacity = 0;
+    setTimeout(() => {
+      if (wide.matches) el.style.width = measure(next) + 'px';
+      setTimeout(() => {
+        i = (i + 1) % lines.length;
+        el.textContent = next;
+        el.style.opacity = 1;
+      }, wide.matches ? 400 : 0);
+    }, 460);
+  }, 5000);
+})();
+</script>
 {% endblock %}
