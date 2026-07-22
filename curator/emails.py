@@ -11,16 +11,53 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from .models import IMAGE_SECTIONS, EmailSend, Subscriber
+from .models import EmailSend, Subscriber
 
 logger = logging.getLogger("curator.emails")
+
+
+def day_groups(issue):
+    """Visible digest events grouped for the email: one group per local
+    calendar day, then 'Worth the Short Drive' (out-of-area events keep their
+    own section), then 'Looking Ahead' for anything past the target window.
+    Each group: {"key", "date" (None for the special groups), "label", "events"}."""
+    by_day = {}
+    drive = []
+    ahead = []
+    digest_events = (
+        issue.digest_events.filter(include_in_email=True)
+        .select_related("event")
+        .order_by("event__starts_at", "id")
+    )
+    for de in digest_events:
+        if de.section == "worth_the_drive":
+            drive.append(de)
+            continue
+        day = timezone.localtime(de.event.starts_at).date()
+        if day > issue.target_end_date:
+            ahead.append(de)
+        else:
+            by_day.setdefault(day, []).append(de)
+    # Unknown-time events are stored at midnight; listing them first would
+    # misread as "starts early", so they go after the timed events.
+    def timed_first(events):
+        return sorted(events, key=lambda de: (not de.event.time_is_known, de.event.starts_at, de.id))
+
+    groups = [
+        {"key": day.isoformat(), "date": day, "label": None, "events": timed_first(by_day[day])}
+        for day in sorted(by_day)
+    ]
+    if drive:
+        groups.append({"key": "worth_the_drive", "date": None, "label": "Worth the Short Drive", "events": drive})
+    if ahead:
+        groups.append({"key": "ahead", "date": None, "label": "Looking Ahead", "events": ahead})
+    return groups
 
 
 def render_digest(issue, unsubscribe_url):
     context = {
         "issue": issue,
-        "sections": issue.sections_with_events(),
-        "image_sections": IMAGE_SECTIONS,
+        "day_groups": day_groups(issue),
         "unsubscribe_url": unsubscribe_url,
         "site_base_url": settings.SITE_BASE_URL,
         "postal_address": settings.EMAIL_POSTAL_ADDRESS,

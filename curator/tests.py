@@ -505,58 +505,89 @@ class DigestTests(TestCase):
         event = self._event("Peoria Fest", city="Peoria", categories=["festival"])
         self.assertEqual(pick_section(event), "worth_the_drive")
 
-    def test_sort_section_orders_chronologically(self):
-        late = self._event("Evening Show", day_offset=1, hour=20, categories=["music"])
-        early = self._event("Morning Market", day_offset=1, hour=8, categories=["market"])
-        issue = generate_digest_issue("bloomington-normal")
-        # both land in top_picks; force a non-chronological order first
-        des = list(issue.digest_events.filter(section="top_picks"))
-        self.assertEqual(len(des), 2)
+    def test_day_groups_chronological_with_looking_ahead(self):
+        from .emails import day_groups
 
-        User.objects.create_superuser("sorter", "s@example.com", "pass12345")
-        self.client.login(username="sorter", password="pass12345")
-        self.client.post(
-            f"/admin-dashboard/digests/{issue.pk}/",
-            {"action": "sort_section", "section": "top_picks"},
-        )
-        ordered = list(
-            issue.digest_events.filter(section="top_picks").order_by("position").select_related("event")
+        self._event("Evening Show", day_offset=0, hour=20, categories=["music"])
+        self._event("Morning Market", day_offset=0, hour=8, categories=["market"])
+        mystery = self._event("Mystery Time Gala", day_offset=0, hour=0, categories=["music"])
+        Event.objects.filter(pk=mystery.pk).update(time_is_known=False)
+        self._event("Peoria Fest", day_offset=1, city="Peoria", categories=["festival"])
+        self._event("Next week concert", day_offset=5, hour=19, score=12, categories=["music"])
+        issue = generate_digest_issue("bloomington-normal")
+
+        groups = day_groups(issue)
+        # weekend days first (dated), then Worth the Short Drive, then Looking Ahead
+        self.assertEqual(groups[0]["date"], self.friday)
+        self.assertEqual(
+            [g["key"] for g in groups[-2:]], ["worth_the_drive", "ahead"]
         )
         self.assertEqual(
-            [de.event.canonical_title for de in ordered], ["Morning Market", "Evening Show"]
+            [de.event.canonical_title for de in groups[-2]["events"]], ["Peoria Fest"]
+        )
+        self.assertEqual(
+            [de.event.canonical_title for de in groups[-1]["events"]], ["Next week concert"]
+        )
+        # out-of-area events never appear inside a day group
+        day_titles = [
+            de.event.canonical_title for g in groups if g["date"] for de in g["events"]
+        ]
+        self.assertNotIn("Peoria Fest", day_titles)
+        # within a day: chronological, unknown-time events last (midnight is a
+        # storage artifact, not a real start time)
+        self.assertEqual(
+            [de.event.canonical_title for de in groups[0]["events"]],
+            ["Morning Market", "Evening Show", "Mystery Time Gala"],
         )
 
-    def test_move_skips_removed_neighbors_and_survives_ties(self):
-        from .models import DigestEvent
+    def test_toggle_drive_moves_between_day_and_drive_group(self):
+        from .emails import day_groups
 
-        a = self._event("Event A", day_offset=1, hour=9)
-        b = self._event("Event B", day_offset=1, hour=10)
-        c = self._event("Event C", day_offset=1, hour=11)
+        event = self._event("Peoria Fest", day_offset=1, city="Peoria", categories=["festival"])
         issue = generate_digest_issue("bloomington-normal")
-        de_a = issue.digest_events.get(event=a)
-        de_b = issue.digest_events.get(event=b)
-        de_c = issue.digest_events.get(event=c)
-        # force visible order A, B, C with B removed, and a position TIE on A/C
-        DigestEvent.objects.filter(pk=de_a.pk).update(position=0, section="top_picks")
-        DigestEvent.objects.filter(pk=de_b.pk).update(position=1, section="top_picks", include_in_email=False)
-        DigestEvent.objects.filter(pk=de_c.pk).update(position=0, section="top_picks")
+        de = issue.digest_events.get(event=event)
+        self.assertEqual(de.section, "worth_the_drive")
 
-        User.objects.create_superuser("mover", "m@example.com", "pass12345")
-        self.client.login(username="mover", password="pass12345")
-        # moving the FIRST visible item down must swap it with the next VISIBLE
-        # item (C), not the hidden removed one (B)
-        first_visible = issue.sections_with_events()[0][2][0]
+        User.objects.create_superuser("curator2", "c2@example.com", "pass12345")
+        self.client.login(username="curator2", password="pass12345")
         self.client.post(
             f"/admin-dashboard/digests/{issue.pk}/",
-            {"action": "move_down", "digest_event_id": first_visible.pk},
+            {"action": "toggle_drive", "digest_event_id": de.pk},
         )
-        visible_after = [de.pk for de in issue.sections_with_events()[0][2]]
-        self.assertEqual(visible_after[1], first_visible.pk)  # it actually moved
-        positions = list(
-            issue.digest_events.filter(section="top_picks", include_in_email=True)
-            .order_by("position").values_list("position", flat=True)
+        groups = day_groups(issue)
+        self.assertNotIn("worth_the_drive", [g["key"] for g in groups])
+        self.assertIn(
+            "Peoria Fest",
+            [d.event.canonical_title for g in groups if g["date"] for d in g["events"]],
         )
-        self.assertEqual(positions, sorted(set(positions)))  # ties gone
+        self.client.post(
+            f"/admin-dashboard/digests/{issue.pk}/",
+            {"action": "toggle_drive", "digest_event_id": de.pk},
+        )
+        self.assertEqual([g["key"] for g in day_groups(issue)][-1], "worth_the_drive")
+
+    def test_removed_event_leaves_email_and_restore_returns_it(self):
+        from .emails import day_groups
+
+        event = self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])
+        self._event("Jazz Night", day_offset=1, hour=19, categories=["music"])
+        issue = generate_digest_issue("bloomington-normal")
+        de = issue.digest_events.get(event=event)
+
+        User.objects.create_superuser("curator", "c@example.com", "pass12345")
+        self.client.login(username="curator", password="pass12345")
+        self.client.post(
+            f"/admin-dashboard/digests/{issue.pk}/",
+            {"action": "remove", "digest_event_id": de.pk},
+        )
+        titles = [d.event.canonical_title for g in day_groups(issue) for d in g["events"]]
+        self.assertNotIn("Farmers Market", titles)
+        self.client.post(
+            f"/admin-dashboard/digests/{issue.pk}/",
+            {"action": "restore", "digest_event_id": de.pk},
+        )
+        titles = [d.event.canonical_title for g in day_groups(issue) for d in g["events"]]
+        self.assertIn("Farmers Market", titles)
 
     def test_send_digest_records_and_marks_sent(self):
         self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])

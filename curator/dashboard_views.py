@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -15,11 +15,10 @@ from django.views.decorators.http import require_POST
 
 from .automations import get_automations
 from .digests import generate_digest_issue, upcoming_weekend
-from .emails import render_digest, send_digest, send_test_email
+from .emails import day_groups, render_digest, send_digest, send_test_email
 from .forms import EventForm
 from .ingest.importer import import_source
 from .models import (
-    DIGEST_SECTIONS,
     DigestEvent,
     DigestIssue,
     Event,
@@ -235,19 +234,8 @@ def digest_detail(request, issue_id):
 
     if request.method == "POST":
         action = request.POST.get("action")
-        if action in ("move_up", "move_down", "set_section", "set_blurb", "remove", "restore"):
+        if action in ("set_blurb", "toggle_drive", "remove", "restore"):
             _digest_event_action(request, issue, action)
-        elif action == "sort_section":
-            section = request.POST.get("section")
-            if section in dict(DIGEST_SECTIONS):
-                ordered = list(
-                    issue.digest_events.filter(section=section, include_in_email=True)
-                    .select_related("event")
-                    .order_by("event__starts_at", "id")
-                )
-                for index, digest_event in enumerate(ordered):
-                    digest_event.position = index
-                DigestEvent.objects.bulk_update(ordered, ["position"])
         elif action == "update_meta":
             issue.subject_line = request.POST.get("subject_line", issue.subject_line)[:300]
             issue.intro_text = request.POST.get("intro_text", issue.intro_text)
@@ -273,9 +261,9 @@ def digest_detail(request, issue_id):
 
     context = {
         "issue": issue,
-        "sections": issue.sections_with_events(),
+        # Same grouping the email uses, so the builder mirrors what readers see
+        "day_groups": day_groups(issue),
         "removed": issue.digest_events.filter(include_in_email=False).select_related("event"),
-        "section_choices": DIGEST_SECTIONS,
         "active_subscriber_count": issue.region.subscribers.filter(
             status=Subscriber.Status.ACTIVE
         ).count(),
@@ -283,52 +271,28 @@ def digest_detail(request, issue_id):
     return render(request, "dashboard/digest_detail.html", context)
 
 
-def _next_position(issue, section, exclude_pk=None):
-    queryset = issue.digest_events.filter(section=section, include_in_email=True)
-    if exclude_pk:
-        queryset = queryset.exclude(pk=exclude_pk)
-    last = queryset.aggregate(m=Max("position"))["m"]
-    return 0 if last is None else last + 1
-
-
 def _digest_event_action(request, issue, action):
     digest_event = get_object_or_404(
         DigestEvent, pk=request.POST.get("digest_event_id"), digest_issue=issue
     )
-    if action in ("move_up", "move_down"):
-        offset = -1 if action == "move_up" else 1
-        # Only the VISIBLE list: swapping with a removed (hidden) neighbor
-        # changes the database but not the screen. Renumber the whole section
-        # afterwards so stale/tied positions can never make moves ambiguous.
-        siblings = list(
-            issue.digest_events.filter(section=digest_event.section, include_in_email=True)
-            .order_by("position", "id")
-        )
-        index = next(i for i, de in enumerate(siblings) if de.pk == digest_event.pk)
-        swap_index = index + offset
-        if 0 <= swap_index < len(siblings):
-            siblings[index], siblings[swap_index] = siblings[swap_index], siblings[index]
-            for i, de in enumerate(siblings):
-                de.position = i
-            DigestEvent.objects.bulk_update(siblings, ["position"])
-    elif action == "set_section":
-        section = request.POST.get("section")
-        if section in dict(DIGEST_SECTIONS):
-            digest_event.position = _next_position(issue, section, exclude_pk=digest_event.pk)
-            digest_event.section = section
-            digest_event.save(update_fields=["section", "position"])
-    elif action == "set_blurb":
+    if action == "set_blurb":
         digest_event.custom_title = request.POST.get("custom_title", "").strip()[:300]
         digest_event.custom_location = request.POST.get("custom_location", "").strip()[:300]
         digest_event.custom_blurb = request.POST.get("custom_blurb", "")
         digest_event.save(update_fields=["custom_title", "custom_location", "custom_blurb"])
+    elif action == "toggle_drive":
+        # The email only distinguishes 'worth_the_drive' from everything else,
+        # so the return target just needs to be any non-drive section.
+        digest_event.section = (
+            "top_picks" if digest_event.section == "worth_the_drive" else "worth_the_drive"
+        )
+        digest_event.save(update_fields=["section"])
     elif action == "remove":
         digest_event.include_in_email = False
         digest_event.save(update_fields=["include_in_email"])
     elif action == "restore":
         digest_event.include_in_email = True
-        digest_event.position = _next_position(issue, digest_event.section, exclude_pk=digest_event.pk)
-        digest_event.save(update_fields=["include_in_email", "position"])
+        digest_event.save(update_fields=["include_in_email"])
 
 
 @staff_member_required

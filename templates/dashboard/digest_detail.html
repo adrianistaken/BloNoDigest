@@ -68,36 +68,31 @@
 </form>
 
 <div class="grid lg:grid-cols-2 gap-5 mt-5 items-start">
-  <!-- Builder -->
+  <!-- Builder: mirrors the email — events grouped by day, chronological -->
   <div class="space-y-5" id="builder-panel">
-    {% for section_key, label, digest_events in sections %}
-    <details open data-section="{{ section_key }}" class="bg-white rounded shadow">
+    {% for group in day_groups %}
+    <details open data-section="{{ group.key }}" class="bg-white rounded shadow">
       <summary class="px-4 py-2 font-bold bg-slate-50 border-b flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-        <span><span class="text-slate-400 mr-1 inline-block transition-transform details-chevron">▸</span>{{ label }} <span class="text-xs font-normal text-slate-400">({{ digest_events|length }})</span></span>
-        <form method="post" class="js-live" onclick="event.stopPropagation()">{% csrf_token %}
-          <input type="hidden" name="section" value="{{ section_key }}">
-          <button name="action" value="sort_section" class="text-xs font-normal bg-slate-200 hover:bg-slate-300 px-2 py-0.5 rounded" title="Reorder this section chronologically">⏱ sort by time</button>
-        </form>
+        <span><span class="text-slate-400 mr-1 inline-block transition-transform details-chevron">▸</span>{% if group.date %}{{ group.date|date:"l, F j" }}{% else %}{{ group.label }}{% endif %} <span class="text-xs font-normal text-slate-400">({{ group.events|length }})</span></span>
+        <span class="text-xs font-normal text-slate-400">chronological, like the email</span>
       </summary>
       <ul class="divide-y divide-slate-100">
-        {% for de in digest_events %}
+        {% for de in group.events %}
         <li class="p-3 text-sm">
           <div class="flex items-start justify-between gap-2">
             <div>
               <a class="font-medium text-blue-700 hover:underline" href="{% url 'dashboard:event_detail' de.event.pk %}">{{ de.event.canonical_title|truncatechars:60 }}</a>
-              <p class="text-xs text-slate-500">{{ de.event.starts_at|date:"D M j, g:i A" }} · {{ de.event.location_display }} · score {{ de.event.quality_score }}</p>
+              <p class="text-xs text-slate-500">{{ de.event.starts_at|date:"D M j" }}{% if de.event.time_is_known %}, {{ de.event.starts_at|date:"g:i A" }}{% else %}, time TBD{% endif %} · {{ de.event.location_display }} · score {{ de.event.quality_score }}</p>
             </div>
             <div class="flex gap-1 shrink-0">
               <form method="post" class="js-live">{% csrf_token %}
                 <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
-                <button name="action" value="move_up" class="bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded" title="Move up">↑</button>
-                <button name="action" value="move_down" class="bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded" title="Move down">↓</button>
                 <button name="action" value="remove" class="bg-red-100 hover:bg-red-200 text-red-800 px-2 py-0.5 rounded" title="Remove from email">✗</button>
               </form>
             </div>
           </div>
           <details class="mt-1" data-de="{{ de.pk }}">
-            <summary class="text-xs text-slate-500 cursor-pointer">title / blurb / section</summary>
+            <summary class="text-xs text-slate-500 cursor-pointer">title / location / blurb</summary>
             <form method="post" class="mt-2 space-y-2 js-live">
               {% csrf_token %}
               <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
@@ -105,13 +100,10 @@
               <input name="custom_location" value="{{ de.custom_location }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom location (defaults to venue; city added only outside Bloomington-Normal)">
               <textarea name="custom_blurb" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom blurb (defaults to event description)">{{ de.custom_blurb }}</textarea>
               <div class="flex gap-2">
-                <button name="action" value="set_blurb" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Save title &amp; blurb</button>
-                <select name="section" class="border rounded px-2 py-1 text-xs">
-                  {% for value, section_label in section_choices %}
-                    <option value="{{ value }}" {% if de.section == value %}selected{% endif %}>{{ section_label }}</option>
-                  {% endfor %}
-                </select>
-                <button name="action" value="set_section" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Move section</button>
+                <button name="action" value="set_blurb" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Save changes</button>
+                <button name="action" value="toggle_drive" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded text-xs">
+                  {% if de.section == "worth_the_drive" %}Move to its day{% else %}Move to &ldquo;Worth the Drive&rdquo;{% endif %}
+                </button>
               </div>
             </form>
           </details>

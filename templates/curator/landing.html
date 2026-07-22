@@ -23,7 +23,7 @@
     Bloomington-Normal weekend plans, sent every <span class="paint-underline">Thursday.</span>
   </h1>
   <p class="rise rise-3 mt-5 text-lg sm:text-xl text-[color:var(--stone)] leading-relaxed max-w-2xl mx-auto min-h-[3.7rem] sm:min-h-[1.9rem]">
-    For people who <span id="tagline-swap" style="transition: opacity .45s ease, width .4s ease;">didn't plan ahead.</span>
+    For people who <span id="tagline-swap" style="transition: opacity .3s ease, width .35s ease;">didn't plan ahead.</span>
   </p>
 
   <div id="signup" class="rise rise-4 card p-6 sm:p-7 relative max-w-xl mx-auto mt-9 text-left">
@@ -314,12 +314,14 @@
     el.style.opacity = 0;
     setTimeout(() => {
       if (wide.matches) el.style.width = measure(next) + 'px';
+      // fade the new line in while the width is still gliding — the pause
+      // between lines reads much shorter without the swap looking abrupt
       setTimeout(() => {
         i = (i + 1) % lines.length;
         el.textContent = next;
         el.style.opacity = 1;
-      }, wide.matches ? 400 : 0);
-    }, 460);
+      }, wide.matches ? 120 : 0);
+    }, 300);
   }, 5000);
 })();
 </script>

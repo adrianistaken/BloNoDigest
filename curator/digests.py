@@ -95,7 +95,10 @@ def generate_digest_issue(region_slug, start_date=None):
         generated_at=timezone.now(),
     )
 
-    top_picks = weekend_events[:TOP_PICKS_COUNT]
+    # Out-of-area events always stay in "worth_the_drive" (their own section
+    # in the email) — a high score must not promote them into the local pool.
+    local_events = [e for e in weekend_events if pick_section(e) != "worth_the_drive"]
+    top_picks = local_events[:TOP_PICKS_COUNT]
     placed = {e.pk for e in top_picks}
     sections = {"top_picks": list(top_picks)}
     for event in weekend_events:

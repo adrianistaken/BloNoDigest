@@ -1,11 +1,8 @@
-{{ issue.title }}
-{% if issue.intro_text %}
-{{ issue.intro_text }}
-{% endif %}
-{% for section_key, label, digest_events in sections %}
-== {{ label|upper }} ==
-{% for de in digest_events %}
-{{ de.event.starts_at|date:"l, F j" }}{% if de.event.time_is_known %}, {{ de.event.starts_at|date:"g:i A" }}{% endif %}
+{% autoescape off %}{{ issue.title }}
+{% for group in day_groups %}
+== {% if group.date %}{{ group.date|date:"l, F j"|upper }}{% else %}{{ group.label|upper }}{% endif %} ==
+{% for de in group.events %}
+{{ de.event.starts_at|date:"D, M j" }}{% if de.event.time_is_known %} · {{ de.event.starts_at|date:"g:i A" }}{% endif %}
 {{ de.display_title }}
 {{ de.display_location }}{% if de.event.price_text %} · {{ de.event.price_text }}{% endif %}
 {% if de.blurb %}{{ de.blurb }}
@@ -18,3 +15,4 @@ Did we miss something good? Hit reply and tell us — we read everything.
 You subscribed to the Bloomington-Normal weekend digest at {{ site_base_url }}
 Sent every Thursday.{% if postal_address %} BloNo Digest · {{ postal_address }}{% endif %}
 Unsubscribe: {{ unsubscribe_url }}
+{% endautoescape %}
