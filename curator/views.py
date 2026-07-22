@@ -1,19 +1,21 @@
-"""Public views: landing, signup, thanks, unsubscribe, health, hidden preview."""
+"""Public views: landing, signup, thanks, unsubscribe, health, issue archive."""
 
 import logging
 import threading
+from datetime import datetime
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db import IntegrityError, connection
-from django.http import Http404, JsonResponse
+from django.db.models import Count, Q
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .emails import send_welcome_email
+from .emails import render_digest, send_welcome_email
 from .forms import SignupForm
-from .models import IMAGE_SECTIONS, DigestIssue, Region, Subscriber
+from .models import DigestIssue, Region, Subscriber
 
 logger = logging.getLogger("curator.views")
 
@@ -79,25 +81,48 @@ def unsubscribe(request, token):
     return render(request, "curator/unsubscribe.html", {"subscriber": subscriber})
 
 
+def issue_archive(request):
+    """Public list of every sent issue, newest first."""
+    issues = (
+        DigestIssue.objects.filter(status=DigestIssue.Status.SENT)
+        .annotate(event_count=Count("digest_events", filter=Q(digest_events__include_in_email=True)))
+        .order_by("-target_start_date", "-sent_at")
+    )
+    return render(request, "curator/issues.html", {"issues": issues})
+
+
+def issue_page(request, issue_date):
+    """Public web version of one issue (also the email's view-in-browser target)."""
+    try:
+        start = datetime.strptime(issue_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise Http404
+    issues = DigestIssue.objects.filter(target_start_date=start)
+    issue = issues.filter(status=DigestIssue.Status.SENT).order_by("-sent_at").first()
+    if issue is None and request.user.is_staff:  # staff can proof drafts at the real URL
+        issue = issues.order_by("-id").first()
+    if issue is None:
+        raise Http404
+    # Sent issues serve their frozen snapshot; drafts (and legacy issues sent
+    # before snapshots existed) render live in the current design.
+    if issue.status == DigestIssue.Status.SENT and issue.rendered_html:
+        return HttpResponse(issue.rendered_html)
+    html, _ = render_digest(issue, unsubscribe_url="", web_version=True)
+    return HttpResponse(html)
+
+
 def preview_latest(request):
-    """Hidden browser preview of the most recently sent digest (spec §24)."""
-    issue = DigestIssue.objects.filter(status=DigestIssue.Status.SENT).first()
+    """Legacy hidden preview URL — now just points at the newest public issue."""
+    issue = (
+        DigestIssue.objects.filter(status=DigestIssue.Status.SENT)
+        .order_by("-target_start_date", "-sent_at")
+        .first()
+    )
     if issue is None and request.user.is_staff:
         issue = DigestIssue.objects.first()
     if issue is None:
         raise Http404
-    return render(
-        request,
-        "curator/emails/digest.html",
-        {
-            "issue": issue,
-            "sections": issue.sections_with_events(),
-            "image_sections": IMAGE_SECTIONS,
-            "unsubscribe_url": "#",
-            "site_base_url": settings.SITE_BASE_URL,
-            "postal_address": settings.EMAIL_POSTAL_ADDRESS,
-        },
-    )
+    return redirect(issue.public_path)
 
 
 def health(request):

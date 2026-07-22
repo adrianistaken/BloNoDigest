@@ -11,7 +11,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from .models import EmailSend, Subscriber
+from .models import DigestIssue, EmailSend, Subscriber
 
 logger = logging.getLogger("curator.emails")
 
@@ -54,13 +54,17 @@ def day_groups(issue):
     return groups
 
 
-def render_digest(issue, unsubscribe_url):
+def render_digest(issue, unsubscribe_url, web_version=False):
+    """web_version=True renders the public browser page: no view-in-browser
+    link or unsubscribe footer, a signup invitation instead."""
     context = {
         "issue": issue,
         "day_groups": day_groups(issue),
         "unsubscribe_url": unsubscribe_url,
         "site_base_url": settings.SITE_BASE_URL,
         "postal_address": settings.EMAIL_POSTAL_ADDRESS,
+        "web_version": web_version,
+        "issue_url": settings.SITE_BASE_URL + issue.public_path,
     }
     html = render_to_string("curator/emails/digest.html", context)
     text = render_to_string("curator/emails/digest.txt", context)
@@ -112,17 +116,28 @@ def send_digest(issue):
 
     issue.status = issue.Status.SENT
     issue.sent_at = now
-    issue.save(update_fields=["status", "sent_at", "updated_at"])
+    # Freeze the public web version as it looks today — the archive is a
+    # historical record, not a re-render in whatever the current design is.
+    issue.rendered_html, _ = render_digest(issue, unsubscribe_url="", web_version=True)
+    issue.save(update_fields=["status", "sent_at", "rendered_html", "updated_at"])
     return sent, failed
 
 
 def send_welcome_email(subscriber):
     """Best-effort confirmation email on signup; failures never block signup."""
     try:
+        # New subscribers can read the latest issue right away instead of
+        # waiting until Thursday (also covers post-send signups).
+        latest = (
+            DigestIssue.objects.filter(status=DigestIssue.Status.SENT)
+            .order_by("-target_start_date", "-sent_at")
+            .first()
+        )
         context = {
             "unsubscribe_url": f"{settings.SITE_BASE_URL}/unsubscribe/{subscriber.unsubscribe_token}/",
             "site_base_url": settings.SITE_BASE_URL,
             "postal_address": settings.EMAIL_POSTAL_ADDRESS,
+            "latest_issue_url": settings.SITE_BASE_URL + latest.public_path if latest else "",
         }
         message = EmailMultiAlternatives(
             subject="You're in — BloNo Digest",

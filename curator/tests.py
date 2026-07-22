@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from .digests import generate_digest_issue, pick_section, upcoming_weekend
-from .emails import send_digest
+from .emails import render_digest, send_digest
 from .ingest.categorize import categorize
 from .ingest.connectors.base import RawEvent
 from .ingest.connectors.html_config import HTMLConfigConnector
@@ -588,6 +588,81 @@ class DigestTests(TestCase):
         )
         titles = [d.event.canonical_title for g in day_groups(issue) for d in g["events"]]
         self.assertIn("Farmers Market", titles)
+
+    def test_public_issue_page_and_archive(self):
+        self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])
+        issue = generate_digest_issue("bloomington-normal")
+        path = issue.public_path
+
+        # drafts are not public
+        self.assertEqual(self.client.get(path).status_code, 404)
+        self.assertNotContains(self.client.get("/issues/"), "Weekend of")
+
+        issue.status = DigestIssue.Status.SENT
+        issue.save(update_fields=["status"])
+        page = self.client.get(path)
+        self.assertEqual(page.status_code, 200)
+        body = page.content.decode()
+        self.assertIn("Farmers Market", body)
+        # web version: no unsubscribe or view-in-browser, signup invite instead
+        self.assertNotIn("Unsubscribe", body)
+        self.assertNotIn("View in browser", body)
+        self.assertIn("Get the digest", body)
+
+        archive = self.client.get("/issues/")
+        self.assertContains(archive, "Weekend of")
+        self.assertContains(archive, path)
+
+        # garbage dates 404 instead of erroring
+        self.assertEqual(self.client.get("/issues/not-a-date/").status_code, 404)
+
+    def test_email_version_links_to_browser_view(self):
+        self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])
+        issue = generate_digest_issue("bloomington-normal")
+        html, text = render_digest(issue, "https://example.com/unsub")
+        self.assertIn("View in browser", html)
+        self.assertIn(issue.public_path, html)
+        self.assertIn("Unsubscribe", html)  # email keeps its footer
+        self.assertIn(issue.public_path, text)
+
+    def test_welcome_email_links_latest_sent_issue(self):
+        from .emails import send_welcome_email
+
+        self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])
+        issue = generate_digest_issue("bloomington-normal")
+        issue.status = DigestIssue.Status.SENT
+        issue.save(update_fields=["status"])
+        subscriber = Subscriber.objects.create(region=self.region, email="new@example.com")
+
+        send_welcome_email(subscriber)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(issue.public_path, mail.outbox[0].alternatives[0][0])
+        self.assertIn(issue.public_path, mail.outbox[0].body)
+
+    def test_archive_page_frozen_at_send_until_deliberate_refresh(self):
+        event = self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])
+        issue = generate_digest_issue("bloomington-normal")
+        Subscriber.objects.create(region=self.region, email="a@example.com")
+        send_digest(issue)
+        issue.refresh_from_db()
+        self.assertIn("Farmers Market", issue.rendered_html)
+
+        # later edits (or redesigns) must NOT change the historical page...
+        de = issue.digest_events.get(event=event)
+        de.custom_title = "Renamed After Send"
+        de.save(update_fields=["custom_title"])
+        page = self.client.get(issue.public_path).content.decode()
+        self.assertIn("Farmers Market", page)
+        self.assertNotIn("Renamed After Send", page)
+
+        # ...until the curator deliberately re-renders it (e.g. after a bug fix)
+        User.objects.create_superuser("freezer", "f@example.com", "pass12345")
+        self.client.login(username="freezer", password="pass12345")
+        self.client.post(
+            f"/admin-dashboard/digests/{issue.pk}/", {"action": "refresh_snapshot"}
+        )
+        page = self.client.get(issue.public_path).content.decode()
+        self.assertIn("Renamed After Send", page)
 
     def test_send_digest_records_and_marks_sent(self):
         self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])

@@ -307,9 +307,19 @@ class DigestIssue(TimestampedModel):
         max_length=20, choices=MediaPlacement.choices, default=MediaPlacement.AFTER_INTRO
     )
 
+    # Web-version HTML frozen at send time, so the public archive shows each
+    # issue as it looked historically instead of re-rendering in the current
+    # design. Refreshable on purpose from the dashboard (e.g. after a bug fix).
+    rendered_html = models.TextField(blank=True)
+
     @property
     def media_active(self):
         return self.media_enabled and bool(self.media_url)
+
+    @property
+    def public_path(self):
+        """URL path of this issue's public web version."""
+        return f"/issues/{self.target_start_date:%Y-%m-%d}/"
 
     class Meta:
         ordering = ["-target_start_date"]

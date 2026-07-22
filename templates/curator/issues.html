@@ -1,0 +1,37 @@
+{% extends "curator/public_base.html" %}
+
+{% block title %}Past issues — BloNo Digest{% endblock %}
+
+{% block content %}
+<section class="max-w-2xl mx-auto px-5 pt-12 pb-6 text-center">
+  <h1 class="font-display font-bold text-4xl text-[color:var(--forest)]">Past issues</h1>
+  <p class="mt-3 text-[color:var(--stone)]">Every weekend guide we've sent, saved for the record.</p>
+
+  <div class="mt-8 text-left">
+    {% for issue in issues %}
+    <a href="{{ issue.public_path }}" class="card block p-5 mt-4 hover:-translate-y-0.5 transition-transform">
+      <div class="flex items-baseline justify-between gap-3 flex-wrap">
+        <p class="font-display font-bold text-xl text-[color:var(--forest)]">
+          Weekend of {{ issue.target_start_date|date:"F j, Y" }}
+        </p>
+        <p class="text-sm text-[color:var(--stone)]">{{ issue.event_count }} event{{ issue.event_count|pluralize }}</p>
+      </div>
+      <p class="text-sm text-[color:var(--stone)] mt-1">
+        {{ issue.target_start_date|date:"D, M j" }} – {{ issue.target_end_date|date:"D, M j" }}
+        · <span class="font-semibold" style="color: var(--terracotta);">Read it →</span>
+      </p>
+    </a>
+    {% empty %}
+    <div class="card p-8 text-center text-[color:var(--stone)]">
+      Nothing here yet — the first issue lands on a Thursday soon.
+    </div>
+    {% endfor %}
+  </div>
+
+  <p class="mt-10 text-[color:var(--stone)]">
+    Want the next one in your inbox?
+    <a href="/#signup" class="font-semibold underline decoration-[color:var(--sage)] underline-offset-2" style="color: var(--terracotta);">Get the digest</a>
+    — free, every Thursday.
+  </p>
+</section>
+{% endblock %}

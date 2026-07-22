@@ -7,7 +7,10 @@ What lands in your inbox: the weekend's best local events, hand-picked and
 organized — markets, live music, family picks, free things to do, date
 night, food & drink, outdoor, and festivals.
 
-Covering Bloomington, Normal, and nearby towns worth the short drive.
+{% if latest_issue_url %}No need to wait for Thursday — read the latest issue now:
+{{ latest_issue_url }}
+
+{% endif %}Covering Bloomington, Normal, and nearby towns worth the short drive.
 
 --
 You signed up at {{ site_base_url }}. Sent every Thursday.

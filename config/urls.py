@@ -24,6 +24,8 @@ urlpatterns = [
     path("", views.landing, name="landing"),
     path("thanks/", views.thanks, name="thanks"),
     path("unsubscribe/<str:token>/", views.unsubscribe, name="unsubscribe"),
+    path("issues/", views.issue_archive, name="issue_archive"),
+    path("issues/<str:issue_date>/", views.issue_page, name="issue_page"),
     path("preview/latest/", views.preview_latest, name="preview_latest"),
     path("health/", views.health, name="health"),
     path("admin-dashboard/", include(dashboard_patterns)),

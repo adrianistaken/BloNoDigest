@@ -251,6 +251,13 @@ def digest_detail(request, issue_id):
         elif action == "send_test":
             to = send_test_email(issue, request.POST.get("test_email") or None)
             messages.success(request, f"Test email sent to {to}.")
+        elif action == "refresh_snapshot":
+            if issue.status == DigestIssue.Status.SENT:
+                issue.rendered_html, _ = render_digest(issue, unsubscribe_url="", web_version=True)
+                issue.save(update_fields=["rendered_html", "updated_at"])
+                messages.success(request, "Public page re-rendered in the current design.")
+            else:
+                messages.error(request, "Only sent issues have a public page snapshot.")
         elif action == "send_final":
             if issue.status == DigestIssue.Status.SENT:
                 messages.error(request, "This issue was already sent.")

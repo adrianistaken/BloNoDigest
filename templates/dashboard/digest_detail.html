@@ -19,6 +19,12 @@
       {% csrf_token %}
       <button name="action" value="send_final" class="bg-green-700 text-white text-sm px-4 py-2 rounded hover:bg-green-800">Send to {{ active_subscriber_count }} subscribers</button>
     </form>
+    {% else %}
+    <a href="{{ issue.public_path }}" target="_blank" class="text-sm text-blue-700 hover:underline">Public page ↗</a>
+    <form method="post" onsubmit="return confirm('Re-render this issue\'s public page in the CURRENT design? Its frozen historical look will be replaced.')">
+      {% csrf_token %}
+      <button name="action" value="refresh_snapshot" class="bg-slate-200 text-sm px-4 py-2 rounded hover:bg-slate-300" title="Use after a template bug fix — replaces the frozen snapshot with a fresh render">Re-render public page</button>
+    </form>
     {% endif %}
   </div>
 </div>

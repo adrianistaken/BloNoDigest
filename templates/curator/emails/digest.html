@@ -8,6 +8,12 @@
 <body style="margin:0; padding:0; background-color:#FAF5E9; font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif; color:#2E302C;">
   <div style="max-width:600px; margin:0 auto; padding:28px 16px 24px;">
 
+    {% if not web_version %}
+    <p style="text-align:center; font-size:12px; margin:0 0 12px;">
+      <a href="{{ issue_url }}" style="color:#6F6A60;">View in browser</a>
+    </p>
+    {% endif %}
+
     <!-- Branded header -->
     <div style="text-align:center;">
       <img src="{{ site_base_url }}{% static 'img/blonodigestlogo-128.png' %}" alt="BloNo Digest" width="44"
@@ -124,11 +130,25 @@
     <div style="background:#EEE5D5; border-radius:14px; padding:16px 18px; margin-top:28px; text-align:center;">
       <p style="font-size:15px; font-weight:600; color:#294C3A; margin:0;">Did we miss something good?</p>
       <p style="font-size:14px; color:#2E302C; margin:5px 0 0;">
-        Hit reply and tell us — we read everything.
+        {% if web_version %}We read everything.{% else %}Hit reply and tell us — we read everything.{% endif %}
         <a href="mailto:hello@blonodigest.com?subject=Event%20suggestion" style="color:#C96F4A; font-weight:600;">Suggest an event</a>
       </p>
     </div>
 
+    {% if web_version %}
+    <!-- Web footer: invite readers into the inbox version -->
+    <div style="margin-top:22px; padding-top:14px; border-top:2px dashed #A8B89A; text-align:center;">
+      <p style="font-size:14px; color:#2E302C; margin:0;">
+        Want this in your inbox every Thursday?
+      </p>
+      <p style="margin:10px 0 0;">
+        <a href="{{ site_base_url }}/#signup" style="display:inline-block; background:#C96F4A; color:#FAF5E9; font-weight:bold; font-size:14px; padding:10px 22px; border-radius:999px; text-decoration:none;">Get the digest — it's free</a>
+      </p>
+      <p style="font-size:12px; color:#6F6A60; margin:12px 0 0;">
+        <a href="{{ site_base_url }}/issues/" style="color:#6F6A60;">Past issues</a>
+      </p>
+    </div>
+    {% else %}
     <!-- Footer -->
     <div style="margin-top:22px; padding-top:14px; border-top:2px dashed #A8B89A; text-align:center;">
       <p style="font-size:12px; color:#6F6A60; line-height:1.7; margin:0;">
@@ -139,6 +159,7 @@
         <a href="{{ unsubscribe_url }}" style="color:#6F6A60;">Unsubscribe</a>
       </p>
     </div>
+    {% endif %}
   </div>
 </body>
 </html>
