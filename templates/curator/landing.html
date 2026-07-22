@@ -113,30 +113,47 @@
         <div class="-mt-0.5" style="letter-spacing: 18px; padding-left: 18px; font-size: 11px; line-height: 1;">
           <span style="color:var(--terracotta);">▼</span><span style="color:var(--mustard);">▼</span><span style="color:var(--forest);">▼</span><span style="color:var(--dustblue);">▼</span><span style="color:var(--sage);">▼</span>
         </div>
-        <p class="font-display font-bold text-lg text-[color:var(--forest)] mt-3 leading-snug">This Weekend Around Bloomington-Normal</p>
-        <p class="text-[11px] font-semibold uppercase tracking-widest text-[color:var(--stone)] mt-1.5">Jul 17 – Jul 19</p>
-        <p class="text-[13px] mt-2">Here are a few things worth leaving the house for.</p>
+        <p class="font-display font-bold text-lg text-[color:var(--forest)] mt-3 leading-snug">This Weekend Around<br><span class="whitespace-nowrap">Bloomington-Normal</span></p>
+        <span class="inline-block rounded-full px-3.5 py-1 text-[10px] font-bold uppercase tracking-widest mt-2" style="background: var(--linen); color: var(--forest);">Jul 17 – Jul 19</span>
 
         <div class="text-left mt-4">
-          <span class="signage" style="padding: 2px 10px; font-size: 10px;">★ Top picks</span>
+          <!-- day header: mini calendar tile + dashed rule, like the real email -->
+          <div class="flex items-center gap-2">
+            <div class="w-8 shrink-0 rounded-md overflow-hidden border border-[color:var(--linen)]">
+              <p class="text-center text-[8px] font-bold uppercase tracking-wider leading-none py-[3px]" style="background: var(--forest); color: var(--cream);">Fri</p>
+              <p class="text-center font-display font-bold text-[13px] leading-none py-[3px] bg-white">17</p>
+            </div>
+            <p class="font-display font-bold text-[14px] text-[color:var(--forest)] whitespace-nowrap">Friday, July 17</p>
+            <div class="flex-1 border-t-2 border-dashed border-[color:var(--sage)]"></div>
+          </div>
+
+          <div class="card mt-2.5">
+            <div class="p-3.5">
+              <p class="font-semibold text-[14.5px] leading-snug">Jazz Night at the Castle Theatre</p>
+              <p class="text-xs mt-0.5"><span class="text-[color:var(--forest)] font-semibold">Fri, Jul 17 · 7:30 PM</span><span class="text-[color:var(--stone)]"> · Downtown Bloomington · </span><span class="font-semibold" style="color: var(--terracotta-deep);">$12</span></p>
+              <p class="text-[13px] mt-1.5">Live horns, low lights, and the best $12 night out in town. <span class="font-semibold whitespace-nowrap" style="color: var(--terracotta);">Details →</span></p>
+            </div>
+            <div class="p-3.5 border-t border-dashed border-[color:var(--linen)]">
+              <p class="font-semibold text-[14.5px] leading-snug">Movie in the Park</p>
+              <p class="text-xs mt-0.5"><span class="text-[color:var(--forest)] font-semibold">Fri, Jul 17 · 8:30 PM</span><span class="text-[color:var(--stone)]"> · Miller Park · </span><span class="font-semibold" style="color: var(--terracotta-deep);">Free</span></p>
+              <p class="text-[13px] mt-1.5">Blankets, snacks, and a movie under the stars. <span class="font-semibold whitespace-nowrap" style="color: var(--terracotta);">Details →</span></p>
+            </div>
+          </div>
+
+          <!-- second day peeking in before the fade -->
+          <div class="flex items-center gap-2 mt-4">
+            <div class="w-8 shrink-0 rounded-md overflow-hidden border border-[color:var(--linen)]">
+              <p class="text-center text-[8px] font-bold uppercase tracking-wider leading-none py-[3px]" style="background: var(--forest); color: var(--cream);">Sat</p>
+              <p class="text-center font-display font-bold text-[13px] leading-none py-[3px] bg-white">18</p>
+            </div>
+            <p class="font-display font-bold text-[14px] text-[color:var(--forest)] whitespace-nowrap">Saturday, July 18</p>
+            <div class="flex-1 border-t-2 border-dashed border-[color:var(--sage)]"></div>
+          </div>
 
           <div class="card mt-2.5 p-3.5">
             <p class="font-semibold text-[14.5px] leading-snug">Saturday Morning Farmers Market</p>
-            <p class="text-xs text-[color:var(--stone)] mt-0.5">
-              Sat, 8:00 AM · Downtown Bloomington · <span class="text-[color:var(--forest)] font-semibold">Free</span>
-            </p>
-            <p class="text-[13px] mt-1.5">An easy Saturday morning pick for local food, vendors, and a walk downtown.</p>
-          </div>
-
-          <div class="card mt-2.5 p-3.5">
-            <p class="font-semibold text-[14.5px] leading-snug">Jazz Night at the Castle Theatre</p>
-            <p class="text-xs text-[color:var(--stone)] mt-0.5">Sat, 7:30 PM · Downtown Bloomington · $12</p>
-            <p class="text-[13px] mt-1.5">Live horns, low lights, and the best $12 night out in town.</p>
-          </div>
-
-          <div class="card mt-2.5 p-3.5">
-            <p class="font-semibold text-[14.5px] leading-snug">Movie in the Park</p>
-            <p class="text-xs text-[color:var(--stone)] mt-0.5">Fri, 8:30 PM · Miller Park · Free</p>
+            <p class="text-xs mt-0.5"><span class="text-[color:var(--forest)] font-semibold">Sat, Jul 18 · 8:00 AM</span><span class="text-[color:var(--stone)]"> · Downtown Bloomington · </span><span class="font-semibold" style="color: var(--terracotta-deep);">Free</span></p>
+            <p class="text-[13px] mt-1.5">Local food, flowers, and a slow walk downtown. <span class="font-semibold whitespace-nowrap" style="color: var(--terracotta);">Details →</span></p>
           </div>
         </div>
       </div>
