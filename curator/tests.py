@@ -396,13 +396,26 @@ class SignupTests(TestCase):
         self.client.post("/", {"email": "Person@Example.com"})
         self.assertEqual(Subscriber.objects.count(), 1)
 
-    def test_unsubscribe_token(self):
+    def test_unsubscribe_requires_confirmation_click(self):
         self.client.post("/", {"email": "person@example.com"})
         subscriber = Subscriber.objects.get()
-        response = self.client.get(f"/unsubscribe/{subscriber.unsubscribe_token}/")
+        url = f"/unsubscribe/{subscriber.unsubscribe_token}/"
+
+        # GET (or a link-prefetching mail scanner) must NOT unsubscribe
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Yes, unsubscribe me")
+        subscriber.refresh_from_db()
+        self.assertEqual(subscriber.status, "active")
+
+        # the explicit confirmation POST does
+        response = self.client.post(url)
+        self.assertContains(response, "You're unsubscribed")
         subscriber.refresh_from_db()
         self.assertEqual(subscriber.status, "unsubscribed")
+
+        # revisiting afterwards shows the already-unsubscribed state
+        self.assertContains(self.client.get(url), "Already unsubscribed")
 
     def test_resubscribe_after_unsubscribe(self):
         self.client.post("/", {"email": "person@example.com"})

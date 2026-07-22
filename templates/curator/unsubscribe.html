@@ -1,14 +1,36 @@
 {% extends "curator/public_base.html" %}
 
-{% block title %}Unsubscribed — BloNo Digest{% endblock %}
+{% block title %}Unsubscribe — BloNo Digest{% endblock %}
 
 {% block content %}
 <section class="max-w-4xl mx-auto px-5 pt-20 pb-10 text-center">
+  {% if subscriber.status == "active" %}
+  <h1 class="font-display font-black text-4xl mt-4">Leaving so soon?</h1>
+  <p class="mt-4 text-lg text-[color:var(--ink-soft)] max-w-xl mx-auto">
+    This will stop the Thursday digest for <strong>{{ subscriber.email }}</strong>.
+  </p>
+  <form method="post" class="mt-8">
+    {% csrf_token %}
+    <button type="submit" class="btn-primary inline-block px-6 py-3 rounded-md font-bold">Yes, unsubscribe me</button>
+  </form>
+  <p class="mt-6 text-sm text-[color:var(--stone)]">
+    Clicked by accident? Just close this page — you're still subscribed.
+    <br>Or head <a href="/" class="underline decoration-[color:var(--sage)] underline-offset-2">back to the front page</a>.
+  </p>
+  {% elif just_unsubscribed %}
   <h1 class="font-display font-black text-4xl mt-4">You're unsubscribed.</h1>
   <p class="mt-4 text-lg text-[color:var(--ink-soft)] max-w-xl mx-auto">
     {{ subscriber.email }} won't receive the Thursday digest anymore.
     Change your mind? You can sign up again any time.
   </p>
   <a href="/" class="btn-primary inline-block mt-8 px-6 py-3 rounded-md font-bold">Back to the front page</a>
+  {% else %}
+  <h1 class="font-display font-black text-4xl mt-4">Already unsubscribed.</h1>
+  <p class="mt-4 text-lg text-[color:var(--ink-soft)] max-w-xl mx-auto">
+    {{ subscriber.email }} isn't getting the Thursday digest.
+    Want it back? You can sign up again any time.
+  </p>
+  <a href="/" class="btn-primary inline-block mt-8 px-6 py-3 rounded-md font-bold">Re-subscribe</a>
+  {% endif %}
 </section>
 {% endblock %}

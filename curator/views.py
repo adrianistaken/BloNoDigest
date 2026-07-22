@@ -74,11 +74,20 @@ def thanks(request):
     return render(request, "curator/thanks.html")
 
 
+@require_http_methods(["GET", "POST"])
 def unsubscribe(request, token):
+    """GET shows a confirmation page; only an explicit POST unsubscribes.
+    (Also protects against mail scanners that prefetch every link.)"""
     subscriber = get_object_or_404(Subscriber, unsubscribe_token=token)
-    if subscriber.status == Subscriber.Status.ACTIVE:
+    just_unsubscribed = False
+    if request.method == "POST" and subscriber.status == Subscriber.Status.ACTIVE:
         subscriber.unsubscribe()
-    return render(request, "curator/unsubscribe.html", {"subscriber": subscriber})
+        just_unsubscribed = True
+    return render(
+        request,
+        "curator/unsubscribe.html",
+        {"subscriber": subscriber, "just_unsubscribed": just_unsubscribed},
+    )
 
 
 def issue_archive(request):
