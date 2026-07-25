@@ -256,23 +256,36 @@ class EventSourceLink(models.Model):
         ]
 
 
-# Section labels follow the visual design spec's recurring newsletter elements.
-# Keys are stable; only labels are display copy.
+# Section labels for the category-based email layout. Keys are stable; only
+# labels are display copy. Hidden Gem is curator-assigned, never automatic.
 DIGEST_SECTIONS = [
     ("top_picks", "Top Picks"),
-    ("family_friendly", "Family Fun"),
-    ("free_cheap", "Free or Cheap"),
-    ("date_night", "Date Night"),
-    ("music_food", "Music & Food"),
-    ("outdoor_markets", "Outdoor & Markets"),
+    ("family_fun", "Family Fun"),
+    ("music_nightlife", "Music & Nightlife"),
+    ("food_markets", "Food, Markets & Downtown"),
+    ("outdoors_active", "Outdoors & Active"),
+    ("arts_community", "Arts & Community"),
     ("hidden_gem", "Hidden Gem"),
     ("worth_the_drive", "Worth the Short Drive"),
     ("next_week", "Looking Ahead"),
 ]
 
-# Sections that may show event images in the email (spec §15: 4–6 images max,
-# mostly Top Picks; everything else stays text-only)
-IMAGE_SECTIONS = {"top_picks", "hidden_gem"}
+# Per-section accent for the email's section headers: a small glyph
+# "illustration" and brand colors for the badge. Glyphs carry U+FE0E where a
+# mail client might otherwise substitute a color emoji. worth_the_drive is
+# special-cased in the template (car image), the glyph here is its fallback.
+SECTION_META = {
+    "top_picks": {"glyph": "★", "bg": "#D5A640", "fg": "#2E302C"},
+    "family_fun": {"glyph": "❀", "bg": "#A8B89A", "fg": "#1E3B2C"},
+    "music_nightlife": {"glyph": "♪", "bg": "#C96F4A", "fg": "#FAF5E9"},
+    "food_markets": {"glyph": "☕︎", "bg": "#294C3A", "fg": "#FAF5E9"},
+    "outdoors_active": {"glyph": "☀︎", "bg": "#5A7385", "fg": "#FAF5E9"},
+    "arts_community": {"glyph": "✎︎", "bg": "#B15D3A", "fg": "#FAF5E9"},
+    "hidden_gem": {"glyph": "◆", "bg": "#2E302C", "fg": "#FAF5E9"},
+    "worth_the_drive": {"glyph": "➳", "bg": "#718C9E", "fg": "#FAF5E9"},
+    "next_week": {"glyph": "✦", "bg": "#6F6A60", "fg": "#FAF5E9"},
+}
+DEFAULT_SECTION_META = {"glyph": "✦", "bg": "#294C3A", "fg": "#FAF5E9"}
 
 
 class DigestIssue(TimestampedModel):

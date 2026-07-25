@@ -74,12 +74,12 @@
 </form>
 
 <div class="grid lg:grid-cols-2 gap-5 mt-5 items-start">
-  <!-- Builder: mirrors the email — events grouped by day, chronological -->
+  <!-- Builder: mirrors the email — events grouped by section, chronological -->
   <div class="space-y-5" id="builder-panel">
-    {% for group in day_groups %}
+    {% for group in sections %}
     <details open data-section="{{ group.key }}" class="bg-white rounded shadow">
       <summary class="px-4 py-2 font-bold bg-slate-50 border-b flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-        <span><span class="text-slate-400 mr-1 inline-block transition-transform details-chevron">▸</span>{% if group.date %}{{ group.date|date:"l, F j" }}{% else %}{{ group.label }}{% endif %} <span class="text-xs font-normal text-slate-400">({{ group.events|length }})</span></span>
+        <span><span class="text-slate-400 mr-1 inline-block transition-transform details-chevron">▸</span>{{ group.label }} <span class="text-xs font-normal text-slate-400">({{ group.events|length }})</span></span>
         <span class="text-xs font-normal text-slate-400">chronological, like the email</span>
       </summary>
       <ul class="divide-y divide-slate-100">
@@ -98,7 +98,7 @@
             </div>
           </div>
           <details class="mt-1" data-de="{{ de.pk }}">
-            <summary class="text-xs text-slate-500 cursor-pointer">title / location / blurb</summary>
+            <summary class="text-xs text-slate-500 cursor-pointer">title / location / blurb / section</summary>
             <form method="post" class="mt-2 space-y-2 js-live">
               {% csrf_token %}
               <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
@@ -107,9 +107,12 @@
               <textarea name="custom_blurb" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom blurb (defaults to event description)">{{ de.custom_blurb }}</textarea>
               <div class="flex gap-2">
                 <button name="action" value="set_blurb" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Save changes</button>
-                <button name="action" value="toggle_drive" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded text-xs">
-                  {% if de.section == "worth_the_drive" %}Move to its day{% else %}Move to &ldquo;Worth the Drive&rdquo;{% endif %}
-                </button>
+                <select name="section" class="border rounded px-2 py-1 text-xs">
+                  {% for value, section_label in section_choices %}
+                    <option value="{{ value }}" {% if de.section == value %}selected{% endif %}>{{ section_label }}</option>
+                  {% endfor %}
+                </select>
+                <button name="action" value="set_section" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Move section</button>
               </div>
             </form>
           </details>

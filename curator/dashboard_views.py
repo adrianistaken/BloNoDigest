@@ -15,10 +15,11 @@ from django.views.decorators.http import require_POST
 
 from .automations import get_automations
 from .digests import generate_digest_issue, upcoming_weekend
-from .emails import day_groups, render_digest, send_digest, send_test_email
+from .emails import render_digest, section_groups, send_digest, send_test_email
 from .forms import EventForm
 from .ingest.importer import import_source
 from .models import (
+    DIGEST_SECTIONS,
     DigestEvent,
     DigestIssue,
     Event,
@@ -234,7 +235,7 @@ def digest_detail(request, issue_id):
 
     if request.method == "POST":
         action = request.POST.get("action")
-        if action in ("set_blurb", "toggle_drive", "remove", "restore"):
+        if action in ("set_blurb", "set_section", "remove", "restore"):
             _digest_event_action(request, issue, action)
         elif action == "update_meta":
             issue.subject_line = request.POST.get("subject_line", issue.subject_line)[:300]
@@ -269,7 +270,8 @@ def digest_detail(request, issue_id):
     context = {
         "issue": issue,
         # Same grouping the email uses, so the builder mirrors what readers see
-        "day_groups": day_groups(issue),
+        "sections": section_groups(issue),
+        "section_choices": DIGEST_SECTIONS,
         "removed": issue.digest_events.filter(include_in_email=False).select_related("event"),
         "active_subscriber_count": issue.region.subscribers.filter(
             status=Subscriber.Status.ACTIVE
@@ -287,13 +289,11 @@ def _digest_event_action(request, issue, action):
         digest_event.custom_location = request.POST.get("custom_location", "").strip()[:300]
         digest_event.custom_blurb = request.POST.get("custom_blurb", "")
         digest_event.save(update_fields=["custom_title", "custom_location", "custom_blurb"])
-    elif action == "toggle_drive":
-        # The email only distinguishes 'worth_the_drive' from everything else,
-        # so the return target just needs to be any non-drive section.
-        digest_event.section = (
-            "top_picks" if digest_event.section == "worth_the_drive" else "worth_the_drive"
-        )
-        digest_event.save(update_fields=["section"])
+    elif action == "set_section":
+        section = request.POST.get("section")
+        if section in dict(DIGEST_SECTIONS):
+            digest_event.section = section
+            digest_event.save(update_fields=["section"])
     elif action == "remove":
         digest_event.include_in_email = False
         digest_event.save(update_fields=["include_in_email"])

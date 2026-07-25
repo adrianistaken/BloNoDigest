@@ -11,47 +11,47 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from .models import DigestIssue, EmailSend, Subscriber
+from .models import (
+    DEFAULT_SECTION_META,
+    DIGEST_SECTIONS,
+    SECTION_META,
+    DigestIssue,
+    EmailSend,
+    Subscriber,
+)
 
 logger = logging.getLogger("curator.emails")
 
 
-def day_groups(issue):
-    """Visible digest events grouped for the email: one group per local
-    calendar day, then 'Worth the Short Drive' (out-of-area events keep their
-    own section), then 'Looking Ahead' for anything past the target window.
-    Each group: {"key", "date" (None for the special groups), "label", "events"}."""
-    by_day = {}
-    drive = []
-    ahead = []
+def section_groups(issue):
+    """Visible digest events grouped by section in DIGEST_SECTIONS order,
+    skipping empty sections. Chronological within each section — every card
+    carries its own day+time, so mixed days in one section stay readable.
+    Each group: {"key", "label", "meta", "events"}."""
+    by_section = {}
     digest_events = (
         issue.digest_events.filter(include_in_email=True)
         .select_related("event")
         .order_by("event__starts_at", "id")
     )
     for de in digest_events:
-        if de.section == "worth_the_drive":
-            drive.append(de)
-            continue
-        day = timezone.localtime(de.event.starts_at).date()
-        if day > issue.target_end_date:
-            ahead.append(de)
-        else:
-            by_day.setdefault(day, []).append(de)
+        by_section.setdefault(de.section, []).append(de)
+
     # Unknown-time events are stored at midnight; listing them first would
     # misread as "starts early", so they go after the timed events.
     def timed_first(events):
         return sorted(events, key=lambda de: (not de.event.time_is_known, de.event.starts_at, de.id))
 
-    groups = [
-        {"key": day.isoformat(), "date": day, "label": None, "events": timed_first(by_day[day])}
-        for day in sorted(by_day)
+    return [
+        {
+            "key": key,
+            "label": label,
+            "meta": SECTION_META.get(key, DEFAULT_SECTION_META),
+            "events": timed_first(by_section[key]),
+        }
+        for key, label in DIGEST_SECTIONS
+        if key in by_section
     ]
-    if drive:
-        groups.append({"key": "worth_the_drive", "date": None, "label": "Worth the Short Drive", "events": drive})
-    if ahead:
-        groups.append({"key": "ahead", "date": None, "label": "Looking Ahead", "events": ahead})
-    return groups
 
 
 def render_digest(issue, unsubscribe_url, web_version=False):
@@ -59,7 +59,7 @@ def render_digest(issue, unsubscribe_url, web_version=False):
     link or unsubscribe footer, a signup invitation instead."""
     context = {
         "issue": issue,
-        "day_groups": day_groups(issue),
+        "sections": section_groups(issue),
         "unsubscribe_url": unsubscribe_url,
         "site_base_url": settings.SITE_BASE_URL,
         "postal_address": settings.EMAIL_POSTAL_ADDRESS,

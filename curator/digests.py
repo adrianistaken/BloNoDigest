@@ -29,21 +29,22 @@ def upcoming_weekend(region_tz, today=None):
 
 
 def pick_section(event):
-    """First matching section by precedence. None = leave for top-picks pool."""
+    """First matching section by precedence. None = leave for top-picks pool.
+    A rough first-pass sort — the curator can move anything in the builder."""
     categories = set(event.categories or [])
     city = (event.city or "").strip().lower()
     if city and city not in CORE_CITIES:
         return "worth_the_drive"
     if categories & {"family", "kids"}:
-        return "family_friendly"
-    if categories & {"free", "cheap"}:
-        return "free_cheap"
-    if "date_night" in categories:
-        return "date_night"
-    if categories & {"music", "food_drink"}:
-        return "music_food"
-    if categories & {"outdoor", "market", "festival"}:
-        return "outdoor_markets"
+        return "family_fun"
+    if categories & {"music", "date_night"}:
+        return "music_nightlife"
+    if categories & {"food_drink", "market", "festival"}:
+        return "food_markets"
+    if categories & {"outdoor", "sports"}:
+        return "outdoors_active"
+    if categories & {"arts_culture", "community", "educational"}:
+        return "arts_community"
     return None
 
 

@@ -518,69 +518,78 @@ class DigestTests(TestCase):
         event = self._event("Peoria Fest", city="Peoria", categories=["festival"])
         self.assertEqual(pick_section(event), "worth_the_drive")
 
-    def test_day_groups_chronological_with_looking_ahead(self):
-        from .emails import day_groups
+    def test_section_groups_follow_taxonomy_order_and_sort_chronologically(self):
+        from .emails import section_groups
 
-        self._event("Evening Show", day_offset=0, hour=20, categories=["music"])
-        self._event("Morning Market", day_offset=0, hour=8, categories=["market"])
-        mystery = self._event("Mystery Time Gala", day_offset=0, hour=0, categories=["music"])
+        self._event("Evening Show", day_offset=1, hour=20, categories=["music"], score=6)
+        self._event("Morning Market", day_offset=0, hour=8, categories=["market"], score=6)
+        self._event("Bird Walk", day_offset=1, hour=7, categories=["outdoor"], score=6)
+        mystery = self._event("Mystery Time Gala", day_offset=0, hour=0, categories=["music"], score=6)
         Event.objects.filter(pk=mystery.pk).update(time_is_known=False)
-        self._event("Peoria Fest", day_offset=1, city="Peoria", categories=["festival"])
+        self._event("Peoria Fest", day_offset=1, city="Peoria", categories=["festival"], score=6)
         self._event("Next week concert", day_offset=5, hour=19, score=12, categories=["music"])
+        # top scorers land in Top Picks; the low scorers spread by category
+        self._event("Headliner A", day_offset=0, hour=19, score=30)
+        self._event("Headliner B", day_offset=1, hour=19, score=30)
+        self._event("Headliner C", day_offset=2, hour=19, score=30)
+        self._event("Headliner D", day_offset=0, hour=18, score=30)
+        self._event("Headliner E", day_offset=1, hour=18, score=30)
         issue = generate_digest_issue("bloomington-normal")
 
-        groups = day_groups(issue)
-        # weekend days first (dated), then Worth the Short Drive, then Looking Ahead
-        self.assertEqual(groups[0]["date"], self.friday)
+        groups = section_groups(issue)
+        keys = [g["key"] for g in groups]
+        # sections appear in taxonomy order and carry their badge meta
         self.assertEqual(
-            [g["key"] for g in groups[-2:]], ["worth_the_drive", "ahead"]
+            keys,
+            ["top_picks", "music_nightlife", "food_markets", "outdoors_active", "worth_the_drive", "next_week"],
+        )
+        self.assertTrue(all(g["meta"]["glyph"] for g in groups))
+        by_key = {g["key"]: g for g in groups}
+        self.assertEqual(
+            [de.event.canonical_title for de in by_key["worth_the_drive"]["events"]], ["Peoria Fest"]
         )
         self.assertEqual(
-            [de.event.canonical_title for de in groups[-2]["events"]], ["Peoria Fest"]
+            [de.event.canonical_title for de in by_key["next_week"]["events"]], ["Next week concert"]
         )
+        # within a section: chronological, unknown-time events last (midnight
+        # is a storage artifact, not a real start time)
         self.assertEqual(
-            [de.event.canonical_title for de in groups[-1]["events"]], ["Next week concert"]
-        )
-        # out-of-area events never appear inside a day group
-        day_titles = [
-            de.event.canonical_title for g in groups if g["date"] for de in g["events"]
-        ]
-        self.assertNotIn("Peoria Fest", day_titles)
-        # within a day: chronological, unknown-time events last (midnight is a
-        # storage artifact, not a real start time)
-        self.assertEqual(
-            [de.event.canonical_title for de in groups[0]["events"]],
-            ["Morning Market", "Evening Show", "Mystery Time Gala"],
+            [de.event.canonical_title for de in by_key["music_nightlife"]["events"]],
+            ["Evening Show", "Mystery Time Gala"],
         )
 
-    def test_toggle_drive_moves_between_day_and_drive_group(self):
-        from .emails import day_groups
+    def test_set_section_moves_event_between_groups(self):
+        from .emails import section_groups
 
-        event = self._event("Peoria Fest", day_offset=1, city="Peoria", categories=["festival"])
+        event = self._event("Puzzle Palooza", day_offset=1, hour=15, categories=["family"])
+        self._event("Jazz Night", day_offset=1, hour=19, categories=["music"])
         issue = generate_digest_issue("bloomington-normal")
         de = issue.digest_events.get(event=event)
-        self.assertEqual(de.section, "worth_the_drive")
+        # both fit in the top-picks pool at this volume; force the family section
+        de.section = "family_fun"
+        de.save(update_fields=["section"])
 
         User.objects.create_superuser("curator2", "c2@example.com", "pass12345")
         self.client.login(username="curator2", password="pass12345")
         self.client.post(
             f"/admin-dashboard/digests/{issue.pk}/",
-            {"action": "toggle_drive", "digest_event_id": de.pk},
+            {"action": "set_section", "digest_event_id": de.pk, "section": "hidden_gem"},
         )
-        groups = day_groups(issue)
-        self.assertNotIn("worth_the_drive", [g["key"] for g in groups])
+        by_key = {g["key"]: g for g in section_groups(issue)}
         self.assertIn(
-            "Peoria Fest",
-            [d.event.canonical_title for g in groups if g["date"] for d in g["events"]],
+            "Puzzle Palooza", [d.event.canonical_title for d in by_key["hidden_gem"]["events"]]
         )
+        self.assertNotIn("family_fun", by_key)
+        # bogus section values are ignored
         self.client.post(
             f"/admin-dashboard/digests/{issue.pk}/",
-            {"action": "toggle_drive", "digest_event_id": de.pk},
+            {"action": "set_section", "digest_event_id": de.pk, "section": "not-real"},
         )
-        self.assertEqual([g["key"] for g in day_groups(issue)][-1], "worth_the_drive")
+        de.refresh_from_db()
+        self.assertEqual(de.section, "hidden_gem")
 
     def test_removed_event_leaves_email_and_restore_returns_it(self):
-        from .emails import day_groups
+        from .emails import section_groups
 
         event = self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])
         self._event("Jazz Night", day_offset=1, hour=19, categories=["music"])
@@ -593,13 +602,13 @@ class DigestTests(TestCase):
             f"/admin-dashboard/digests/{issue.pk}/",
             {"action": "remove", "digest_event_id": de.pk},
         )
-        titles = [d.event.canonical_title for g in day_groups(issue) for d in g["events"]]
+        titles = [d.event.canonical_title for g in section_groups(issue) for d in g["events"]]
         self.assertNotIn("Farmers Market", titles)
         self.client.post(
             f"/admin-dashboard/digests/{issue.pk}/",
             {"action": "restore", "digest_event_id": de.pk},
         )
-        titles = [d.event.canonical_title for g in day_groups(issue) for d in g["events"]]
+        titles = [d.event.canonical_title for g in section_groups(issue) for d in g["events"]]
         self.assertIn("Farmers Market", titles)
 
     def test_public_issue_page_and_archive(self):

@@ -1,7 +1,7 @@
 {% autoescape off %}{{ issue.title }}
 Read online: {{ issue_url }}
-{% for group in day_groups %}
-== {% if group.date %}{{ group.date|date:"l, F j"|upper }}{% else %}{{ group.label|upper }}{% endif %} ==
+{% for group in sections %}
+== {{ group.label|upper }} ==
 {% for de in group.events %}
 {{ de.event.starts_at|date:"D, M j" }}{% if de.event.time_is_known %} · {{ de.event.starts_at|date:"g:i A" }}{% endif %}
 {{ de.display_title }}
