@@ -74,56 +74,91 @@
 </form>
 
 <div class="grid lg:grid-cols-2 gap-5 mt-5 items-start">
-  <!-- Builder: mirrors the email — events grouped by section, chronological -->
+  <!-- Builder: mirrors the email — day-by-day spine, then your sections -->
   <div class="space-y-5" id="builder-panel">
+    <!-- Ad-hoc sections: create what this week's events deserve -->
+    <div class="bg-white rounded shadow p-3 space-y-2">
+      <form method="post" class="js-live flex gap-2 items-center">
+        {% csrf_token %}
+        <input name="title" placeholder="New section for this issue (e.g. “Live music this weekend”)" class="flex-1 border rounded px-2 py-1.5 text-sm">
+        <label class="text-xs text-slate-500 flex items-center gap-1 whitespace-nowrap" title="Also save this title as a quick-add chip for future issues">
+          <input type="checkbox" name="save_preset"> save as quick-add
+        </label>
+        <button name="action" value="create_section" class="bg-slate-900 text-white text-xs px-3 py-1.5 rounded hover:bg-slate-700">+ Add section</button>
+      </form>
+      {% if available_presets %}
+      <div class="flex flex-wrap gap-1.5 items-center text-xs">
+        <span class="text-slate-400 font-semibold">Quick add:</span>
+        {% for preset in available_presets %}
+        <span class="inline-flex items-center rounded-full border border-slate-200 overflow-hidden">
+          <form method="post" class="js-live">{% csrf_token %}
+            <input type="hidden" name="title" value="{{ preset.title }}">
+            <button name="action" value="create_section" class="pl-2.5 pr-1 py-1 bg-slate-50 hover:bg-slate-100 font-medium" title="Add a “{{ preset.title }}” section to this issue">+ {{ preset.title }}</button>
+          </form>
+          <form method="post" class="js-live">{% csrf_token %}
+            <input type="hidden" name="preset_id" value="{{ preset.pk }}">
+            <button name="action" value="delete_preset" class="px-1.5 py-1 text-slate-300 hover:text-red-600" title="Remove this quick-add (sections already created are unaffected)">✕</button>
+          </form>
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% for day in days %}
+    <details open data-section="{{ day.date|date:'Y-m-d' }}" class="bg-white rounded shadow">
+      <summary class="px-4 py-2 font-bold bg-slate-50 border-b flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+        <span><span class="text-slate-400 mr-1 inline-block transition-transform details-chevron">▸</span>{{ day.date|date:"l, F j" }} <span class="text-xs font-normal text-slate-400">({{ day.events|length }})</span></span>
+        <span class="text-xs font-normal text-slate-400">day by day, like the email</span>
+      </summary>
+      <ul class="divide-y divide-slate-100">
+        {% for de in day.events %}{% include "dashboard/_digest_event_row.html" %}{% endfor %}
+      </ul>
+    </details>
+    {% endfor %}
+
     {% for group in sections %}
     <details open data-section="{{ group.key }}" class="bg-white rounded shadow">
       <summary class="px-4 py-2 font-bold bg-slate-50 border-b flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
         <span><span class="text-slate-400 mr-1 inline-block transition-transform details-chevron">▸</span>{{ group.label }} <span class="text-xs font-normal text-slate-400">({{ group.events|length }})</span></span>
-        <span class="text-xs font-normal text-slate-400">chronological, like the email</span>
+        {% if group.custom_pk %}
+        <form method="post" class="js-live flex gap-1" onclick="event.stopPropagation()">{% csrf_token %}
+          <input type="hidden" name="section_id" value="{{ group.custom_pk }}">
+          <input type="hidden" name="action" value="move_section">
+          <button name="direction" value="up" class="text-xs font-normal bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded" title="Move this section earlier in the email">↑</button>
+          <button name="direction" value="down" class="text-xs font-normal bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded" title="Move this section later in the email">↓</button>
+          <button name="action" value="delete_section" class="text-xs font-normal bg-red-50 hover:bg-red-100 text-red-700 px-2 py-0.5 rounded" title="Delete this section — its events return to their days">delete section</button>
+        </form>
+        {% else %}
+        <span class="text-xs font-normal text-slate-400">automatic: events past the weekend</span>
+        {% endif %}
       </summary>
       <ul class="divide-y divide-slate-100">
-        {% for de in group.events %}
-        <li class="p-3 text-sm">
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <a class="font-medium text-blue-700 hover:underline" href="{% url 'dashboard:event_detail' de.event.pk %}">{{ de.event.canonical_title|truncatechars:60 }}</a>
-              <p class="text-xs text-slate-500">{{ de.event.starts_at|date:"D M j" }}{% if de.event.time_is_known %}, {{ de.event.starts_at|date:"g:i A" }}{% else %}, time TBD{% endif %} · {{ de.event.location_display }} · score {{ de.event.quality_score }}</p>
-            </div>
-            <div class="flex gap-1 shrink-0">
-              <form method="post" class="js-live">{% csrf_token %}
-                <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
-                <button name="action" value="remove" class="bg-red-100 hover:bg-red-200 text-red-800 px-2 py-0.5 rounded" title="Remove from email">✗</button>
-              </form>
-            </div>
-          </div>
-          <details class="mt-1" data-de="{{ de.pk }}">
-            <summary class="text-xs text-slate-500 cursor-pointer">title / location / blurb / section</summary>
-            <form method="post" class="mt-2 space-y-2 js-live">
-              {% csrf_token %}
-              <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
-              <input name="custom_title" value="{{ de.custom_title }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom title (defaults to event title, auto-shortened if long)">
-              <input name="custom_location" value="{{ de.custom_location }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom location (defaults to venue; city added only outside Bloomington-Normal)">
-              <textarea name="custom_blurb" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom blurb (defaults to event description)">{{ de.custom_blurb }}</textarea>
-              <div class="flex gap-2">
-                <button name="action" value="set_blurb" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Save changes</button>
-                <select name="section" class="border rounded px-2 py-1 text-xs">
-                  {% for value, section_label in section_choices %}
-                    <option value="{{ value }}" {% if de.section == value %}selected{% endif %}>{{ section_label }}</option>
-                  {% endfor %}
-                </select>
-                <button name="action" value="set_section" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Move section</button>
-              </div>
-            </form>
-          </details>
-        </li>
-        {% endfor %}
+        {% for de in group.events %}{% include "dashboard/_digest_event_row.html" %}{% endfor %}
       </ul>
     </details>
-    {% empty %}
+    {% endfor %}
+
+    {% if not days and not sections %}
     <div class="bg-white rounded shadow p-6 text-center text-slate-500">
       No events in this digest. Approve events, then regenerate a draft.
     </div>
+    {% endif %}
+
+    {% for cs in empty_sections %}
+    <details open data-section="custom-{{ cs.pk }}" class="bg-white rounded shadow">
+      <summary class="px-4 py-2 font-bold bg-slate-50 border-b flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+        <span><span class="text-slate-400 mr-1 inline-block transition-transform details-chevron">▸</span>{{ cs.title }} <span class="text-xs font-normal text-slate-400">(0)</span></span>
+        <form method="post" class="js-live flex gap-1" onclick="event.stopPropagation()">{% csrf_token %}
+          <input type="hidden" name="section_id" value="{{ cs.pk }}">
+          <input type="hidden" name="action" value="move_section">
+          <button name="direction" value="up" class="text-xs font-normal bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded" title="Move this section earlier in the email">↑</button>
+          <button name="direction" value="down" class="text-xs font-normal bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded" title="Move this section later in the email">↓</button>
+          <button name="action" value="delete_section" class="text-xs font-normal bg-red-50 hover:bg-red-100 text-red-700 px-2 py-0.5 rounded">delete section</button>
+        </form>
+      </summary>
+      <p class="p-4 text-sm text-slate-400 italic">Drag events here (or use an event's “Place” dropdown). Empty sections never appear in the email.</p>
+    </details>
     {% endfor %}
 
     {% if removed %}
@@ -148,7 +183,10 @@
 
   <!-- Email preview: sticky so it stays visible while scrolling the builder -->
   <div class="bg-white rounded shadow lg:sticky lg:top-4">
-    <p class="px-4 py-2 font-bold bg-slate-50 border-b">Email preview</p>
+    <p class="px-4 py-2 font-bold bg-slate-50 border-b flex items-center justify-between">
+      Email preview
+      <a href="{% url 'dashboard:digest_preview' issue.pk %}" target="_blank" class="text-xs font-normal text-blue-700 hover:underline">Open full size ↗</a>
+    </p>
     <iframe id="preview-frame" src="{% url 'dashboard:digest_preview' issue.pk %}" class="w-full bg-white" style="height: 80vh" title="Digest email preview"></iframe>
   </div>
 </div>
@@ -158,36 +196,87 @@
 <script>
 // Builder actions post in the background and refresh only the builder panel
 // and the email preview — no page reload, scroll position preserved.
+async function postAndRefresh(data) {
+  const openEditors = [...document.querySelectorAll('#builder-panel details[data-de][open]')].map(d => d.dataset.de);
+  const closedSections = [...document.querySelectorAll('#builder-panel details[data-section]:not([open])')].map(d => d.dataset.section);
+  const resp = await fetch(window.location.href, { method: 'POST', body: data });
+  if (!resp.ok) throw new Error(resp.status);
+  const doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
+  const fresh = doc.getElementById('builder-panel');
+  const panel = document.getElementById('builder-panel');
+  if (fresh && panel) {
+    panel.innerHTML = fresh.innerHTML;
+    openEditors.forEach(id => {
+      const d = panel.querySelector(`details[data-de="${id}"]`);
+      if (d) d.open = true;
+    });
+    closedSections.forEach(key => {
+      const d = panel.querySelector(`details[data-section="${key}"]`);
+      if (d) d.open = false;
+    });
+  }
+  const frame = document.getElementById('preview-frame');
+  if (frame) frame.src = frame.src;
+}
+
 document.addEventListener('submit', async (e) => {
   const form = e.target.closest('form.js-live');
   if (!form) return;
   e.preventDefault();
   const data = new FormData(form);
   if (e.submitter && e.submitter.name) data.append(e.submitter.name, e.submitter.value);
-  const openEditors = [...document.querySelectorAll('#builder-panel details[data-de][open]')].map(d => d.dataset.de);
-  const closedSections = [...document.querySelectorAll('#builder-panel details[data-section]:not([open])')].map(d => d.dataset.section);
   try {
-    const resp = await fetch(window.location.href, { method: 'POST', body: data });
-    if (!resp.ok) throw new Error(resp.status);
-    const doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
-    const fresh = doc.getElementById('builder-panel');
-    const panel = document.getElementById('builder-panel');
-    if (fresh && panel) {
-      panel.innerHTML = fresh.innerHTML;
-      openEditors.forEach(id => {
-        const d = panel.querySelector(`details[data-de="${id}"]`);
-        if (d) d.open = true;
-      });
-      closedSections.forEach(key => {
-        const d = panel.querySelector(`details[data-section="${key}"]`);
-        if (d) d.open = false;
-      });
-    }
-    const frame = document.getElementById('preview-frame');
-    if (frame) frame.src = frame.src;
+    await postAndRefresh(data);
   } catch (err) {
     form.submit(); // graceful fallback: normal page-refresh post
   }
+});
+
+// Drag an event row onto a section (or a day group) to place it there.
+// Drop targets reuse the set_placement action; days = back to day-by-day.
+const droppableKey = (key) => key && key !== '__removed' && key !== 'ahead';
+const clearDropHighlights = () => {
+  document.querySelectorAll('#builder-panel details[data-section]').forEach(d =>
+    d.classList.remove('ring-2', 'ring-blue-400'));
+};
+
+document.addEventListener('dragstart', (e) => {
+  // Only handles are draggable, but Chromium may report the drag target as
+  // whatever sits under the pointer when the drag threshold is crossed —
+  // resolve the row from anywhere inside it, not just the handle.
+  const row = e.target.closest && e.target.closest('li[data-de-row]');
+  if (!row) return;
+  e.dataTransfer.setData('text/plain', row.dataset.deRow);
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setDragImage(row, 16, 16);
+  row.classList.add('opacity-50');
+});
+document.addEventListener('dragend', (e) => {
+  document.querySelectorAll('li[data-de-row].opacity-50').forEach(li => li.classList.remove('opacity-50'));
+  clearDropHighlights();
+});
+document.addEventListener('dragover', (e) => {
+  const target = e.target.closest('details[data-section]');
+  if (!target || !droppableKey(target.dataset.section)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  clearDropHighlights();
+  target.classList.add('ring-2', 'ring-blue-400');
+});
+document.addEventListener('drop', async (e) => {
+  const target = e.target.closest('details[data-section]');
+  if (!target || !droppableKey(target.dataset.section)) return;
+  e.preventDefault();
+  clearDropHighlights();
+  const id = e.dataTransfer.getData('text/plain');
+  if (!id) return;
+  const key = target.dataset.section;
+  const data = new FormData();
+  data.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+  data.append('action', 'set_placement');
+  data.append('digest_event_id', id);
+  data.append('custom_section_id', key.startsWith('custom-') ? key.slice(7) : '');
+  try { await postAndRefresh(data); } catch (err) { /* row snaps back untouched */ }
 });
 </script>
 {% endblock %}

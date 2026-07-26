@@ -479,6 +479,59 @@ class DigestTests(TestCase):
         de.custom_blurb = "x" * 300
         self.assertEqual(len(de.blurb), 300)  # admin's own words never truncated
 
+    def test_blurb_density_and_sentence_cuts(self):
+        from .models import DigestEvent
+
+        sentenced = self._event(
+            "Sentence Event",
+            day_offset=1,
+            description=(
+                "First sentence here. Second sentence is a bit longer than the first. "
+                "This third sentence is deliberately long enough to push the whole "
+                "description well past the one hundred forty character budget."
+            ),
+        )
+        gig = self._event(
+            "Bar Gig", day_offset=1, hour=21, categories=["music"],
+            description="Promo copy " * 30,
+        )
+        issue = generate_digest_issue("bloomington-normal")
+
+        de = issue.digest_events.get(event=sentenced)
+        # auto blurb ends at a sentence boundary — complete sentences, no "…"
+        self.assertEqual(de.blurb_source, "auto")
+        self.assertTrue(de.blurb.endswith("the first."))
+        self.assertNotIn("…", de.blurb)
+        self.assertLessEqual(len(de.blurb), DigestEvent.BLURB_MAX_CHARS)
+
+        de_gig = issue.digest_events.get(event=gig)
+        de_gig.section = "music_nightlife"
+        de_gig.save(update_fields=["section"])
+        # one-liner section: scraped copy hidden, curator words always shown
+        self.assertEqual(de_gig.blurb, "")
+        self.assertEqual(de_gig.blurb_source, "light")
+        de_gig.custom_blurb = "Loud, sweaty, and worth it."
+        self.assertEqual(de_gig.blurb, "Loud, sweaty, and worth it.")
+        self.assertEqual(de_gig.blurb_source, "custom")
+
+    def test_display_price_override_and_hide(self):
+        event = self._event(
+            "Tote Bag Workshop", day_offset=1, hour=18,
+            price_text="$40 per person/$75 per couple Participants must register on the website.",
+        )
+        issue = generate_digest_issue("bloomington-normal")
+        de = issue.digest_events.get(event=event)
+        # defaults to the source's (messy) price text
+        self.assertIn("$40 per person", de.display_price)
+        # curator override runs verbatim
+        de.custom_price = "$40 ($75/couple)"
+        self.assertEqual(de.display_price, "$40 ($75/couple)")
+        # a lone dash hides the price entirely
+        de.custom_price = "-"
+        self.assertEqual(de.display_price, "")
+        html, _ = render_digest(issue, "#")
+        self.assertNotIn("Participants must register", de.display_price)
+
     def test_display_title_truncates_unless_custom(self):
         from .models import DigestEvent
 
@@ -518,78 +571,145 @@ class DigestTests(TestCase):
         event = self._event("Peoria Fest", city="Peoria", categories=["festival"])
         self.assertEqual(pick_section(event), "worth_the_drive")
 
-    def test_section_groups_follow_taxonomy_order_and_sort_chronologically(self):
-        from .emails import section_groups
+    def test_email_layout_days_default_and_looking_ahead(self):
+        from .emails import email_layout
 
-        self._event("Evening Show", day_offset=1, hour=20, categories=["music"], score=6)
+        self._event("Evening Show", day_offset=0, hour=20, categories=["music"], score=6)
         self._event("Morning Market", day_offset=0, hour=8, categories=["market"], score=6)
-        self._event("Bird Walk", day_offset=1, hour=7, categories=["outdoor"], score=6)
         mystery = self._event("Mystery Time Gala", day_offset=0, hour=0, categories=["music"], score=6)
         Event.objects.filter(pk=mystery.pk).update(time_is_known=False)
         self._event("Peoria Fest", day_offset=1, city="Peoria", categories=["festival"], score=6)
         self._event("Next week concert", day_offset=5, hour=19, score=12, categories=["music"])
-        # top scorers land in Top Picks; the low scorers spread by category
-        self._event("Headliner A", day_offset=0, hour=19, score=30)
-        self._event("Headliner B", day_offset=1, hour=19, score=30)
-        self._event("Headliner C", day_offset=2, hour=19, score=30)
-        self._event("Headliner D", day_offset=0, hour=18, score=30)
-        self._event("Headliner E", day_offset=1, hour=18, score=30)
         issue = generate_digest_issue("bloomington-normal")
 
-        groups = section_groups(issue)
-        keys = [g["key"] for g in groups]
-        # sections appear in taxonomy order and carry their badge meta
-        self.assertEqual(
-            keys,
-            ["top_picks", "music_nightlife", "food_markets", "outdoors_active", "worth_the_drive", "next_week"],
+        days, sections = email_layout(issue)
+        # everything defaults to its day — no automatic category sections
+        self.assertEqual([d["date"] for d in days], [self.friday, self.friday + timedelta(days=1)])
+        self.assertIn(
+            "Peoria Fest", [de.event.canonical_title for de in days[1]["events"]]
         )
-        self.assertTrue(all(g["meta"]["glyph"] for g in groups))
-        by_key = {g["key"]: g for g in groups}
+        # only the automatic Looking Ahead section exists (no custom sections yet)
+        self.assertEqual([g["key"] for g in sections], ["ahead"])
         self.assertEqual(
-            [de.event.canonical_title for de in by_key["worth_the_drive"]["events"]], ["Peoria Fest"]
+            [de.event.canonical_title for de in sections[0]["events"]], ["Next week concert"]
         )
+        # within a day: chronological, unknown-time events last (midnight is
+        # a storage artifact, not a real start time)
         self.assertEqual(
-            [de.event.canonical_title for de in by_key["next_week"]["events"]], ["Next week concert"]
-        )
-        # within a section: chronological, unknown-time events last (midnight
-        # is a storage artifact, not a real start time)
-        self.assertEqual(
-            [de.event.canonical_title for de in by_key["music_nightlife"]["events"]],
-            ["Evening Show", "Mystery Time Gala"],
+            [de.event.canonical_title for de in days[0]["events"]],
+            ["Morning Market", "Evening Show", "Mystery Time Gala"],
         )
 
-    def test_set_section_moves_event_between_groups(self):
-        from .emails import section_groups
+    def test_featured_pick_and_day_subheads(self):
+        from .emails import DAY_SUBHEAD_THRESHOLD, email_layout
+
+        star = self._event("Headline Act", day_offset=1, hour=19, score=40)
+        self._event("Runner Up", day_offset=0, hour=19, score=20)
+        for i in range(DAY_SUBHEAD_THRESHOLD + 4):
+            self._event(f"Family Thing {i}", day_offset=i % 3, hour=9 + i % 10, categories=["family"], score=6)
+        issue = generate_digest_issue("bloomington-normal")
+
+        html, text = render_digest(issue, "https://example.com/unsub")
+        # the strongest spine event is spotlighted and not repeated below
+        self.assertIn("Pick of the week", html)
+        self.assertEqual(html.count("Headline Act"), 1)
+        self.assertIn("PICK OF THE WEEK", text)
+        self.assertIn("Go make a weekend of it.", html)
+        # spine day headers render for the weekend days
+        self.assertIn(self.friday.strftime("%A, %B"), html)
+
+        # pinning any event overrides the auto choice; only one pin at a time
+        runner = issue.digest_events.get(event__canonical_title="Runner Up")
+        User.objects.create_superuser("pinner", "p@example.com", "pass12345")
+        self.client.login(username="pinner", password="pass12345")
+        self.client.post(
+            f"/admin-dashboard/digests/{issue.pk}/",
+            {"action": "set_featured", "digest_event_id": runner.pk},
+        )
+        html, _ = render_digest(issue, "https://example.com/unsub")
+        # the pinned event renders first (in the spotlight card at the top)
+        self.assertLess(html.find("Runner Up"), html.find("Headline Act"))
+        # unpin: falls back to the auto (highest-score) choice
+        self.client.post(
+            f"/admin-dashboard/digests/{issue.pk}/",
+            {"action": "set_featured", "digest_event_id": runner.pk},
+        )
+        html, _ = render_digest(issue, "https://example.com/unsub")
+        self.assertLess(html.find("Headline Act"), html.find("Runner Up"))
+
+        # a curator section holding many events gets day sub-headers; the
+        # spotlighted event is excluded from wherever it lives
+        section = issue.custom_sections.create(title="Family stuff", position=0)
+        issue.digest_events.filter(event__canonical_title__startswith="Family Thing").update(
+            custom_section=section
+        )
+        days, sections = email_layout(issue)
+        family = sections[0]
+        self.assertTrue(all(c["date"] for c in family["chunks"]))
+        self.assertGreater(len(family["chunks"]), 1)
+        dates = [c["date"] for c in family["chunks"]]
+        self.assertEqual(dates, sorted(dates))
+
+    def test_custom_sections_create_place_delete(self):
+        from .emails import email_layout
 
         event = self._event("Puzzle Palooza", day_offset=1, hour=15, categories=["family"])
         self._event("Jazz Night", day_offset=1, hour=19, categories=["music"])
         issue = generate_digest_issue("bloomington-normal")
         de = issue.digest_events.get(event=event)
-        # both fit in the top-picks pool at this volume; force the family section
-        de.section = "family_fun"
-        de.save(update_fields=["section"])
 
         User.objects.create_superuser("curator2", "c2@example.com", "pass12345")
         self.client.login(username="curator2", password="pass12345")
+        url = f"/admin-dashboard/digests/{issue.pk}/"
+
+        # create a section for this issue
+        self.client.post(url, {"action": "create_section", "title": "Rainy day plans"})
+        section = issue.custom_sections.get()
+        self.assertEqual(section.title, "Rainy day plans")
+        # while still empty it must render as a drop target in the builder
+        # (empty sections are only hidden from the email, not the builder)
+        page = self.client.get(url).content.decode()
+        self.assertIn(f'data-section="custom-{section.pk}"', page)
+
+        # place an event in it — it leaves its day and renders under the section
         self.client.post(
-            f"/admin-dashboard/digests/{issue.pk}/",
-            {"action": "set_section", "digest_event_id": de.pk, "section": "hidden_gem"},
+            url,
+            {"action": "set_placement", "digest_event_id": de.pk, "custom_section_id": section.pk},
         )
-        by_key = {g["key"]: g for g in section_groups(issue)}
-        self.assertIn(
-            "Puzzle Palooza", [d.event.canonical_title for d in by_key["hidden_gem"]["events"]]
-        )
-        self.assertNotIn("family_fun", by_key)
-        # bogus section values are ignored
+        days, sections = email_layout(issue)
+        self.assertEqual(sections[0]["label"], "Rainy day plans")
+        self.assertIsNone(sections[0]["meta"])  # curator sections have no badge
+        self.assertIn("Puzzle Palooza", [d.event.canonical_title for d in sections[0]["events"]])
+        # curator sections are day-grouped even with a single event
+        self.assertTrue(all(c["date"] for c in sections[0]["chunks"]))
+        day_titles = [d.event.canonical_title for day in days for d in day["events"]]
+        self.assertNotIn("Puzzle Palooza", day_titles)
+        html, _ = render_digest(issue, "#")
+        self.assertIn("Rainy day plans", html)
+
+        # empty placement returns the event to its day
         self.client.post(
-            f"/admin-dashboard/digests/{issue.pk}/",
-            {"action": "set_section", "digest_event_id": de.pk, "section": "not-real"},
+            url, {"action": "set_placement", "digest_event_id": de.pk, "custom_section_id": ""}
         )
         de.refresh_from_db()
-        self.assertEqual(de.section, "hidden_gem")
+        self.assertIsNone(de.custom_section)
+
+        # deleting a section drops its events back to their days
+        self.client.post(
+            url,
+            {"action": "set_placement", "digest_event_id": de.pk, "custom_section_id": section.pk},
+        )
+        self.client.post(url, {"action": "delete_section", "section_id": section.pk})
+        self.assertEqual(issue.custom_sections.count(), 0)
+        days, sections = email_layout(issue)
+        self.assertEqual(sections, [])
+        self.assertIn(
+            "Puzzle Palooza",
+            [d.event.canonical_title for day in days for d in day["events"]],
+        )
 
     def test_removed_event_leaves_email_and_restore_returns_it(self):
-        from .emails import section_groups
+        from .emails import email_layout
 
         event = self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])
         self._event("Jazz Night", day_offset=1, hour=19, categories=["music"])
@@ -602,14 +722,102 @@ class DigestTests(TestCase):
             f"/admin-dashboard/digests/{issue.pk}/",
             {"action": "remove", "digest_event_id": de.pk},
         )
-        titles = [d.event.canonical_title for g in section_groups(issue) for d in g["events"]]
+        titles = [d.event.canonical_title for day in email_layout(issue)[0] for d in day["events"]]
         self.assertNotIn("Farmers Market", titles)
         self.client.post(
             f"/admin-dashboard/digests/{issue.pk}/",
             {"action": "restore", "digest_event_id": de.pk},
         )
-        titles = [d.event.canonical_title for g in section_groups(issue) for d in g["events"]]
+        titles = [d.event.canonical_title for day in email_layout(issue)[0] for d in day["events"]]
         self.assertIn("Farmers Market", titles)
+
+    def test_section_days_stay_in_order_with_unknown_time_events(self):
+        from .emails import email_layout
+
+        self._event("Sat Timed Show", day_offset=1, hour=18, categories=["music"])
+        untimed = self._event("Sat All-Day Fest", day_offset=1, hour=0, categories=["music"])
+        Event.objects.filter(pk=untimed.pk).update(time_is_known=False)
+        self._event("Sun Matinee", day_offset=2, hour=14, categories=["music"])
+        issue = generate_digest_issue("bloomington-normal")
+        section = issue.custom_sections.create(title="Music", position=0)
+        issue.digest_events.update(custom_section=section)
+
+        _, sections = email_layout(issue)
+        chunks = sections[0]["chunks"]
+        # one chunk per day, in order — the timeless Saturday event must not
+        # split Saturday into a second run after Sunday
+        self.assertEqual(len(chunks), 2)
+        self.assertEqual([c["date"] for c in chunks], sorted(c["date"] for c in chunks))
+        self.assertEqual(
+            [de.event.canonical_title for de in chunks[0]["events"]],
+            ["Sat Timed Show", "Sat All-Day Fest"],  # timed first within the day
+        )
+
+    def test_section_presets_quick_add_save_and_delete(self):
+        from .models import SectionPreset
+
+        self._event("Jazz Night", day_offset=1, hour=19, categories=["music"])
+        issue = generate_digest_issue("bloomington-normal")
+        User.objects.create_superuser("presets", "pr@example.com", "pass12345")
+        self.client.login(username="presets", password="pass12345")
+        url = f"/admin-dashboard/digests/{issue.pk}/"
+
+        # starter presets are seeded and shown as quick-add chips
+        self.assertTrue(SectionPreset.objects.filter(title="Music").exists())
+        self.assertContains(self.client.get(url), "Quick add:")
+
+        # clicking a chip creates a section with that title (same action)
+        self.client.post(url, {"action": "create_section", "title": "Music"})
+        self.assertTrue(issue.custom_sections.filter(title="Music").exists())
+        # chip hides once the section exists on this issue
+        self.assertNotContains(self.client.get(url), "+ Music")
+
+        # creating with "save as quick-add" adds a reusable preset (no dupes)
+        self.client.post(
+            url, {"action": "create_section", "title": "Rooftop patios", "save_preset": "on"}
+        )
+        self.assertTrue(SectionPreset.objects.filter(title="Rooftop patios").exists())
+        self.client.post(
+            url, {"action": "create_section", "title": "rooftop PATIOS", "save_preset": "on"}
+        )
+        self.assertEqual(
+            SectionPreset.objects.filter(title__iexact="rooftop patios").count(), 1
+        )
+
+        # deleting a preset removes the chip but not sections already created
+        preset = SectionPreset.objects.get(title="Rooftop patios")
+        self.client.post(url, {"action": "delete_preset", "preset_id": preset.pk})
+        self.assertFalse(SectionPreset.objects.filter(title="Rooftop patios").exists())
+        self.assertTrue(issue.custom_sections.filter(title="Rooftop patios").exists())
+
+    def test_move_section_reorders_email(self):
+        from .emails import email_layout
+
+        first = self._event("Taco Crawl", day_offset=1, hour=17, categories=["food_drink"])
+        second = self._event("Punk Show", day_offset=1, hour=21, categories=["music"])
+        issue = generate_digest_issue("bloomington-normal")
+        food = issue.custom_sections.create(title="Food", position=0)
+        music = issue.custom_sections.create(title="Music", position=1)
+        issue.digest_events.filter(event=first).update(custom_section=food)
+        issue.digest_events.filter(event=second).update(custom_section=music)
+
+        User.objects.create_superuser("orderer", "o@example.com", "pass12345")
+        self.client.login(username="orderer", password="pass12345")
+        url = f"/admin-dashboard/digests/{issue.pk}/"
+        # the delete button lives in the same form as the hidden move action;
+        # the submitted button must win — moving up must NOT delete
+        self.client.post(
+            url, {"action": "move_section", "section_id": music.pk, "direction": "up"}
+        )
+        _, sections = email_layout(issue)
+        self.assertEqual([g["label"] for g in sections], ["Music", "Food"])
+        # moving the top section up is a no-op, not an error
+        self.client.post(
+            url, {"action": "move_section", "section_id": music.pk, "direction": "up"}
+        )
+        _, sections = email_layout(issue)
+        self.assertEqual([g["label"] for g in sections], ["Music", "Food"])
+        self.assertEqual(issue.custom_sections.count(), 2)
 
     def test_public_issue_page_and_archive(self):
         self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])

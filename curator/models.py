@@ -1,3 +1,4 @@
+import re
 import secrets
 
 from django.db import models
@@ -270,22 +271,14 @@ DIGEST_SECTIONS = [
     ("next_week", "Looking Ahead"),
 ]
 
-# Per-section accent for the email's section headers: a small glyph
-# "illustration" and brand colors for the badge. Glyphs carry U+FE0E where a
-# mail client might otherwise substitute a color emoji. worth_the_drive is
-# special-cased in the template (car image), the glyph here is its fallback.
-SECTION_META = {
-    "top_picks": {"glyph": "★", "bg": "#D5A640", "fg": "#2E302C"},
-    "family_fun": {"glyph": "❀", "bg": "#A8B89A", "fg": "#1E3B2C"},
-    "music_nightlife": {"glyph": "♪", "bg": "#C96F4A", "fg": "#FAF5E9"},
-    "food_markets": {"glyph": "☕︎", "bg": "#294C3A", "fg": "#FAF5E9"},
-    "outdoors_active": {"glyph": "☀︎", "bg": "#5A7385", "fg": "#FAF5E9"},
-    "arts_community": {"glyph": "✎︎", "bg": "#B15D3A", "fg": "#FAF5E9"},
-    "hidden_gem": {"glyph": "◆", "bg": "#2E302C", "fg": "#FAF5E9"},
-    "worth_the_drive": {"glyph": "➳", "bg": "#718C9E", "fg": "#FAF5E9"},
-    "next_week": {"glyph": "✦", "bg": "#6F6A60", "fg": "#FAF5E9"},
-}
-DEFAULT_SECTION_META = {"glyph": "✦", "bg": "#294C3A", "fg": "#FAF5E9"}
+# One-liner sections: the event name + time + venue carries these (a show
+# listing doesn't need scraped promo copy). Auto-blurbs are suppressed here;
+# curator-written blurbs still show.
+LIGHT_SECTIONS = {"music_nightlife", "food_markets"}
+
+# Initials and common abbreviations whose trailing period must not be read
+# as a sentence boundary when trimming auto-blurbs
+_NOT_SENTENCE_END = re.compile(r"\b(?:[A-Z]|Mr|Mrs|Ms|Dr|St|Ave|Rd|vs|etc|Jr|Sr)\.$")
 
 
 class DigestIssue(TimestampedModel):
@@ -348,6 +341,38 @@ class DigestIssue(TimestampedModel):
         return [(key, label, by_section[key]) for key, label in DIGEST_SECTIONS if key in by_section]
 
 
+class SectionPreset(models.Model):
+    """A reusable section title the curator can add to any issue with one
+    click. Fully user-managed from the digest builder (seeded with a few
+    starters); deleting a preset never touches sections already created."""
+
+    title = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["title"]
+
+    def __str__(self):
+        return self.title
+
+
+class DigestSection(models.Model):
+    """A curator-created section for one issue ("Live music this weekend",
+    "Fair food crawl"). Sections are per-issue and ad hoc — weeks differ, so
+    the email's sections differ. Events without one sit in the day-by-day."""
+
+    digest_issue = models.ForeignKey(DigestIssue, on_delete=models.CASCADE, related_name="custom_sections")
+    title = models.CharField(max_length=100)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.title
+
+
 class DigestEvent(models.Model):
     digest_issue = models.ForeignKey(DigestIssue, on_delete=models.CASCADE, related_name="digest_events")
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="digest_appearances")
@@ -356,7 +381,17 @@ class DigestEvent(models.Model):
     custom_title = models.CharField(max_length=300, blank=True)
     custom_location = models.CharField(max_length=300, blank=True)
     custom_blurb = models.TextField(blank=True)
+    custom_price = models.CharField(max_length=100, blank=True)
     include_in_email = models.BooleanField(default=True)
+    # Curator-pinned "Pick of the week" spotlight; when nothing is pinned the
+    # email falls back to the highest-scoring event
+    featured = models.BooleanField(default=False)
+    # Placement: in a curator-created section, or (when null) in the
+    # day-by-day spine. The legacy `section` field remains as import-time
+    # category metadata (it still drives one-liner blurb density).
+    custom_section = models.ForeignKey(
+        DigestSection, on_delete=models.SET_NULL, null=True, blank=True, related_name="digest_events"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -365,7 +400,8 @@ class DigestEvent(models.Model):
             models.UniqueConstraint(fields=["digest_issue", "event"], name="unique_event_per_digest"),
         ]
 
-    BLURB_MAX_CHARS = 110
+    # Sentence-boundary cuts need room for one full sentence
+    BLURB_MAX_CHARS = 140
     TITLE_MAX_CHARS = 75
 
     @property
@@ -400,18 +436,61 @@ class DigestEvent(models.Model):
         return event.location_display
 
     @property
+    def display_price(self):
+        """Curator-entered price wins (sources sometimes stuff a paragraph in
+        their price field); a single "-" hides the price entirely; blank
+        falls back to the source's price text."""
+        custom = self.custom_price.strip()
+        if custom == "-":
+            return ""
+        return custom or (self.event.price_text or "").strip()
+
+    @property
     def blurb(self):
-        """Admin-written blurbs run verbatim; auto-blurbs get a tight,
-        word-boundary cut so email items stay scannable."""
+        """Curator-written blurbs run verbatim anywhere. Auto-blurbs are
+        suppressed in one-liner sections (the title carries those events),
+        and elsewhere cut at a sentence boundary — a complete sentence reads
+        as written, a mid-word ellipsis reads as scraped."""
         if self.custom_blurb:
             return self.custom_blurb
+        if self.section in LIGHT_SECTIONS:
+            return ""
         text = (self.event.description or "").strip()
         if len(text) <= self.BLURB_MAX_CHARS:
             return text
+        # A period after an initial or abbreviation isn't a sentence end
+        # ("Barbara J. Barrett", "Dr. Smith") — glue those pieces back.
+        parts = re.split(r"(?<=[.!?])\s+", text)
+        sentences = []
+        for part in parts:
+            if sentences and _NOT_SENTENCE_END.search(sentences[-1]):
+                sentences[-1] += " " + part
+            else:
+                sentences.append(part)
+        kept = ""
+        for sentence in sentences:
+            candidate = f"{kept} {sentence}".strip()
+            if len(candidate) > self.BLURB_MAX_CHARS:
+                break
+            kept = candidate
+        if kept:
+            return kept
+        # first sentence alone is too long: word-boundary fallback
         cut = text[: self.BLURB_MAX_CHARS]
         if " " in cut:
             cut = cut[: cut.rfind(" ")]
         return cut.rstrip(".,;:") + "…"
+
+    @property
+    def blurb_source(self):
+        """'custom' (curator-written), 'light' (one-liner section, auto text
+        hidden), or 'auto' (truncated source description) — the builder shows
+        this so Thursday review can target what still needs a human line."""
+        if self.custom_blurb:
+            return "custom"
+        if self.section in LIGHT_SECTIONS:
+            return "light"
+        return "auto"
 
 
 class EmailSend(models.Model):

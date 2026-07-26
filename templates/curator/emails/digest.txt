@@ -1,15 +1,37 @@
 {% autoescape off %}{{ issue.title }}
 Read online: {{ issue_url }}
+{% if issue.intro_text %}
+{{ issue.intro_text }}
+{% endif %}{% if featured %}
+== PICK OF THE WEEK ==
+
+{{ featured.event.starts_at|date:"D, M j" }}{% if featured.event.time_is_known %} · {{ featured.event.starts_at|date:"g:i A" }}{% endif %}
+{{ featured.display_title }}
+{{ featured.display_location }}{% if featured.display_price %} · {{ featured.display_price }}{% endif %}
+{% if featured.blurb %}{{ featured.blurb }}
+{% endif %}{% if featured.event.source_url %}Details: {{ featured.event.source_url }}
+{% endif %}{% endif %}
+{% for day in days %}
+== {{ day.date|date:"l, F j"|upper }} ==
+{% for de in day.events %}
+{% if de.event.time_is_known %}{{ de.event.starts_at|date:"g:i A" }} · {% endif %}{{ de.display_title }}
+{{ de.display_location }}{% if de.display_price %} · {{ de.display_price }}{% endif %}
+{% if de.blurb %}{{ de.blurb }}
+{% endif %}{% if de.event.source_url %}Details: {{ de.event.source_url }}
+{% endif %}
+{% endfor %}{% endfor %}
 {% for group in sections %}
 == {{ group.label|upper }} ==
 {% for de in group.events %}
 {{ de.event.starts_at|date:"D, M j" }}{% if de.event.time_is_known %} · {{ de.event.starts_at|date:"g:i A" }}{% endif %}
 {{ de.display_title }}
-{{ de.display_location }}{% if de.event.price_text %} · {{ de.event.price_text }}{% endif %}
+{{ de.display_location }}{% if de.display_price %} · {{ de.display_price }}{% endif %}
 {% if de.blurb %}{{ de.blurb }}
 {% endif %}{% if de.event.source_url %}Details: {{ de.event.source_url }}
 {% endif %}
 {% endfor %}{% endfor %}
+Go make a weekend of it. — Adrian
+
 Did we miss something good? Hit reply and tell us — we read everything.
 
 --

@@ -11,55 +11,146 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from .models import (
-    DEFAULT_SECTION_META,
-    DIGEST_SECTIONS,
-    SECTION_META,
-    DigestIssue,
-    EmailSend,
-    Subscriber,
-)
+from .models import DigestIssue, EmailSend, Subscriber
 
 logger = logging.getLogger("curator.emails")
 
 
-def section_groups(issue):
-    """Visible digest events grouped by section in DIGEST_SECTIONS order,
-    skipping empty sections. Chronological within each section — every card
-    carries its own day+time, so mixed days in one section stay readable.
-    Each group: {"key", "label", "meta", "events"}."""
-    by_section = {}
+# Looking Ahead groups by day only at this size; curator sections always do.
+DAY_SUBHEAD_THRESHOLD = 6
+
+
+def _timed_first(events):
+    """Chronological, but unknown-time events last — they're stored at
+    midnight, and listing them first would misread as "starts early"."""
+    return sorted(events, key=lambda de: (not de.event.time_is_known, de.event.starts_at, de.id))
+
+
+def _day_ordered(events):
+    """Strictly day-by-day: days in order, and within each day timed events
+    first. (Sorting unknown-time events to the end of the whole section would
+    split a day into two runs and duplicate its sub-header.)"""
+    return sorted(
+        events,
+        key=lambda de: (
+            timezone.localtime(de.event.starts_at).date(),
+            not de.event.time_is_known,
+            de.event.starts_at,
+            de.id,
+        ),
+    )
+
+
+def _day_chunks(events, force=False):
+    """[{'date': date|None, 'events': [...]}]. One chunk per day (Boise-style
+    day sub-headers); below the threshold a single dateless chunk, unless
+    forced — curator sections are always day-grouped."""
+    if not force and len(events) < DAY_SUBHEAD_THRESHOLD:
+        return [{"date": None, "events": events}]
+    chunks = []
+    for de in events:
+        day = timezone.localtime(de.event.starts_at).date()
+        if not chunks or chunks[-1]["date"] != day:
+            chunks.append({"date": day, "events": []})
+        chunks[-1]["events"].append(de)
+    return chunks
+
+
+def email_layout(issue):
+    """(days, sections) for the email.
+
+    Days: the day-by-day spine — the default home of every event, grouped by
+    local calendar day. Sections: the curator's ad-hoc sections for this
+    issue, in their order, followed by an automatic 'Looking Ahead' for
+    unsectioned events past the target window. Weeks differ, so sections
+    differ — they're created per issue in the builder."""
+    spine = {}
+    ahead = []
+    by_custom = {}
     digest_events = (
         issue.digest_events.filter(include_in_email=True)
-        .select_related("event")
+        .select_related("event", "custom_section")
         .order_by("event__starts_at", "id")
     )
     for de in digest_events:
-        by_section.setdefault(de.section, []).append(de)
+        if de.custom_section_id:
+            by_custom.setdefault(de.custom_section_id, []).append(de)
+            continue
+        day = timezone.localtime(de.event.starts_at).date()
+        if day > issue.target_end_date:
+            ahead.append(de)
+        else:
+            spine.setdefault(day, []).append(de)
 
-    # Unknown-time events are stored at midnight; listing them first would
-    # misread as "starts early", so they go after the timed events.
-    def timed_first(events):
-        return sorted(events, key=lambda de: (not de.event.time_is_known, de.event.starts_at, de.id))
+    days = [{"date": day, "events": _timed_first(spine[day])} for day in sorted(spine)]
 
-    return [
-        {
-            "key": key,
-            "label": label,
-            "meta": SECTION_META.get(key, DEFAULT_SECTION_META),
-            "events": timed_first(by_section[key]),
-        }
-        for key, label in DIGEST_SECTIONS
-        if key in by_section
-    ]
+    sections = []
+    for custom in issue.custom_sections.all():
+        events = by_custom.get(custom.pk)
+        if not events:
+            continue
+        events = _day_ordered(events)
+        sections.append(
+            {
+                "key": f"custom-{custom.pk}",
+                "custom_pk": custom.pk,
+                "label": custom.title,
+                "meta": None,  # curator sections: just the title, no badge
+                "events": events,
+                "chunks": _day_chunks(events, force=True),
+            }
+        )
+    if ahead:
+        events = _day_ordered(ahead)
+        sections.append(
+            {
+                "key": "ahead",
+                "label": "Looking Ahead",
+                "meta": {"glyph": "✦", "bg": "#6F6A60", "fg": "#FAF5E9"},
+                "events": events,
+                "chunks": _day_chunks(events),
+            }
+        )
+    return days, sections
+
+
+def featured_pick(days, sections):
+    """Pinned event anywhere wins; else the strongest event in the spine."""
+    spine_events = [de for day in days for de in day["events"]]
+    section_events = [de for group in sections for de in group["events"]]
+    for de in spine_events + section_events:
+        if de.featured:
+            return de
+    pool = spine_events or section_events
+    return max(pool, key=lambda de: de.event.quality_score) if pool else None
 
 
 def render_digest(issue, unsubscribe_url, web_version=False):
     """web_version=True renders the public browser page: no view-in-browser
     link or unsubscribe footer, a signup invitation instead."""
+    days, sections = email_layout(issue)
+
+    # Pick of the week: spotlighted at the top, removed from wherever it lives
+    featured = featured_pick(days, sections)
+    if featured:
+        days = [
+            {**day, "events": [de for de in day["events"] if de.pk != featured.pk]}
+            for day in days
+        ]
+        days = [day for day in days if day["events"]]
+        rebuilt = []
+        for group in sections:
+            remaining = [de for de in group["events"] if de.pk != featured.pk]
+            if remaining:
+                chunks = _day_chunks(remaining, force=group["key"].startswith("custom-"))
+                rebuilt.append({**group, "events": remaining, "chunks": chunks})
+        sections = rebuilt
+
     context = {
         "issue": issue,
-        "sections": section_groups(issue),
+        "featured": featured,
+        "days": days,
+        "sections": sections,
         "unsubscribe_url": unsubscribe_url,
         "site_base_url": settings.SITE_BASE_URL,
         "postal_address": settings.EMAIL_POSTAL_ADDRESS,

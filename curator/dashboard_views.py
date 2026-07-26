@@ -15,12 +15,13 @@ from django.views.decorators.http import require_POST
 
 from .automations import get_automations
 from .digests import generate_digest_issue, upcoming_weekend
-from .emails import render_digest, section_groups, send_digest, send_test_email
+from .emails import email_layout, featured_pick, render_digest, send_digest, send_test_email
 from .forms import EventForm
 from .ingest.importer import import_source
 from .models import (
-    DIGEST_SECTIONS,
     DigestEvent,
+    DigestSection,
+    SectionPreset,
     DigestIssue,
     Event,
     EventSource,
@@ -235,8 +236,35 @@ def digest_detail(request, issue_id):
 
     if request.method == "POST":
         action = request.POST.get("action")
-        if action in ("set_blurb", "set_section", "remove", "restore"):
+        if action in ("set_blurb", "set_placement", "set_featured", "remove", "restore"):
             _digest_event_action(request, issue, action)
+        elif action == "create_section":
+            title = request.POST.get("title", "").strip()[:100]
+            if title:
+                issue.custom_sections.create(title=title, position=issue.custom_sections.count())
+                if request.POST.get("save_preset") and not SectionPreset.objects.filter(
+                    title__iexact=title
+                ).exists():
+                    SectionPreset.objects.create(title=title)
+        elif action == "delete_preset":
+            get_object_or_404(SectionPreset, pk=request.POST.get("preset_id")).delete()
+        elif action == "delete_section":
+            section = get_object_or_404(
+                DigestSection, pk=request.POST.get("section_id"), digest_issue=issue
+            )
+            section.delete()  # events fall back to their day (FK is SET_NULL)
+        elif action == "move_section":
+            section = get_object_or_404(
+                DigestSection, pk=request.POST.get("section_id"), digest_issue=issue
+            )
+            ordered = list(issue.custom_sections.all())
+            index = next(i for i, s in enumerate(ordered) if s.pk == section.pk)
+            swap = index - 1 if request.POST.get("direction") == "up" else index + 1
+            if 0 <= swap < len(ordered):
+                ordered[index], ordered[swap] = ordered[swap], ordered[index]
+                for i, s in enumerate(ordered):
+                    s.position = i
+                DigestSection.objects.bulk_update(ordered, ["position"])
         elif action == "update_meta":
             issue.subject_line = request.POST.get("subject_line", issue.subject_line)[:300]
             issue.intro_text = request.POST.get("intro_text", issue.intro_text)
@@ -267,11 +295,30 @@ def digest_detail(request, issue_id):
                 messages.success(request, f"Digest sent to {sent} subscribers ({failed} failed).")
         return redirect("dashboard:digest_detail", issue_id=issue.pk)
 
+    days, sections = email_layout(issue)
+    featured = featured_pick(days, sections)
+    # Sections with no visible events are skipped by the email, but the
+    # builder must still show them as drop targets — a brand-new section is
+    # exactly where you want to drag things.
+    rendered_keys = {group["key"] for group in sections}
+    empty_sections = [
+        cs for cs in issue.custom_sections.all() if f"custom-{cs.pk}" not in rendered_keys
+    ]
+    # Quick-add chips: hide presets whose title already exists on this issue
+    existing_titles = {cs.title.lower() for cs in issue.custom_sections.all()}
+    available_presets = [
+        p for p in SectionPreset.objects.all() if p.title.lower() not in existing_titles
+    ]
     context = {
         "issue": issue,
         # Same grouping the email uses, so the builder mirrors what readers see
-        "sections": section_groups(issue),
-        "section_choices": DIGEST_SECTIONS,
+        "days": days,
+        "sections": sections,
+        "empty_sections": empty_sections,
+        "available_presets": available_presets,
+        "custom_sections": issue.custom_sections.all(),
+        "featured_pk": featured.pk if featured else None,
+        "featured_is_pinned": featured.featured if featured else False,
         "removed": issue.digest_events.filter(include_in_email=False).select_related("event"),
         "active_subscriber_count": issue.region.subscribers.filter(
             status=Subscriber.Status.ACTIVE
@@ -287,13 +334,26 @@ def _digest_event_action(request, issue, action):
     if action == "set_blurb":
         digest_event.custom_title = request.POST.get("custom_title", "").strip()[:300]
         digest_event.custom_location = request.POST.get("custom_location", "").strip()[:300]
+        digest_event.custom_price = request.POST.get("custom_price", "").strip()[:100]
         digest_event.custom_blurb = request.POST.get("custom_blurb", "")
-        digest_event.save(update_fields=["custom_title", "custom_location", "custom_blurb"])
-    elif action == "set_section":
-        section = request.POST.get("section")
-        if section in dict(DIGEST_SECTIONS):
-            digest_event.section = section
-            digest_event.save(update_fields=["section"])
+        digest_event.save(
+            update_fields=["custom_title", "custom_location", "custom_price", "custom_blurb"]
+        )
+    elif action == "set_placement":
+        section_id = request.POST.get("custom_section_id") or None
+        digest_event.custom_section = (
+            issue.custom_sections.filter(pk=section_id).first() if section_id else None
+        )
+        digest_event.save(update_fields=["custom_section"])
+    elif action == "set_featured":
+        # Toggle the pinned Pick of the Week; only one per issue
+        if digest_event.featured:
+            digest_event.featured = False
+            digest_event.save(update_fields=["featured"])
+        else:
+            issue.digest_events.update(featured=False)
+            digest_event.featured = True
+            digest_event.save(update_fields=["featured"])
     elif action == "remove":
         digest_event.include_in_email = False
         digest_event.save(update_fields=["include_in_email"])
