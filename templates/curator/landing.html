@@ -108,52 +108,49 @@
 
       <!-- the email itself -->
       <div class="px-5 py-4 text-center">
-        <p class="font-display font-bold text-[15px] text-[color:var(--forest)]">BloNo Digest<span class="text-[color:var(--terracotta)]">.</span></p>
+        <img src="{% static 'img/blonodigestlogo-128.png' %}" alt="" class="mx-auto h-9 w-auto">
+        <p class="font-display font-bold text-[15px] text-[color:var(--forest)] mt-1">BloNo Digest<span class="text-[color:var(--terracotta)]">.</span></p>
         <div class="border-t-2 border-dashed border-[color:var(--sage)] mt-2"></div>
         <div class="-mt-0.5" style="letter-spacing: 18px; padding-left: 18px; font-size: 11px; line-height: 1;">
-          <span style="color:var(--terracotta);">▼</span><span style="color:var(--mustard);">▼</span><span style="color:var(--forest);">▼</span><span style="color:var(--dustblue);">▼</span><span style="color:var(--sage);">▼</span>
+          <span style="color:var(--terracotta);">▼</span><span style="color:var(--mustard);">▼</span><span style="color:var(--forest);">▼</span><span style="color:var(--dustblue);">▼</span><span style="color:var(--sage);">▼</span><span style="color:var(--terracotta);">▼</span>
         </div>
         <p class="font-display font-bold text-lg text-[color:var(--forest)] mt-3 leading-snug">This Weekend Around<br><span class="whitespace-nowrap">Bloomington-Normal</span></p>
+        <div class="h-1 w-20 rounded-full mx-auto mt-2" style="background: var(--terracotta); opacity: .75;"></div>
         <span class="inline-block rounded-full px-3.5 py-1 text-[10px] font-bold uppercase tracking-widest mt-2" style="background: var(--linen); color: var(--forest);">Jul 17 – Jul 19</span>
+        <p class="text-[12px] leading-relaxed mt-2.5">Here are a few things worth leaving the house for.</p>
 
         <div class="text-left mt-4">
-          <!-- day header: mini calendar tile + dashed rule, like the real email -->
-          <div class="flex items-center gap-2">
-            <div class="w-8 shrink-0 rounded-md overflow-hidden border border-[color:var(--linen)]">
-              <p class="text-center text-[8px] font-bold uppercase tracking-wider leading-none py-[3px]" style="background: var(--forest); color: var(--cream);">Fri</p>
-              <p class="text-center font-display font-bold text-[13px] leading-none py-[3px] bg-white">17</p>
-            </div>
+          <!-- Pick of the week mirrors the real email's spotlight card -->
+          <div class="rounded-xl border-2 p-3.5 bg-white" style="border-color: var(--mustard);">
+            <span class="inline-block rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider" style="background: var(--mustard); color: var(--charcoal);">★ Pick of the week</span>
+            <p class="text-[10px] font-bold uppercase tracking-wider mt-2" style="color: var(--terracotta-deep);">Sat, Jul 18 · 10:00 AM</p>
+            <p class="font-display font-bold text-[15px] leading-snug underline underline-offset-2 mt-1">Sunflower Days at Rader Family Farms</p>
+            <p class="text-[11px] text-[color:var(--stone)] mt-1">Rader Family Farms · <span class="font-semibold text-[color:var(--forest)]">Tickets from $10</span></p>
+            <p class="text-[12px] leading-relaxed mt-1.5">Acres of sunflowers, colorful zinnias, live music, crafts, and plenty of reasons to linger on the farm.</p>
+          </div>
+
+          <!-- Day-by-day spine: text header, dashed rule, unboxed rows -->
+          <div class="flex items-center gap-2 mt-5">
             <p class="font-display font-bold text-[14px] text-[color:var(--forest)] whitespace-nowrap">Friday, July 17</p>
             <div class="flex-1 border-t-2 border-dashed border-[color:var(--sage)]"></div>
           </div>
 
-          <div class="card mt-2.5">
-            <div class="p-3.5">
-              <p class="font-semibold text-[14.5px] leading-snug underline underline-offset-2">Jazz Night at the Castle Theatre</p>
-              <p class="text-xs mt-0.5"><span class="text-[color:var(--forest)] font-semibold">Fri, Jul 17 · 7:30 PM</span><span class="text-[color:var(--stone)]"> · Downtown Bloomington · </span><span class="font-semibold" style="color: var(--terracotta-deep);">$12</span></p>
-              <p class="text-[13px] mt-1.5">Live horns, low lights, and the best $12 night out in town.</p>
-            </div>
-            <div class="p-3.5 border-t border-dashed border-[color:var(--linen)]">
-              <p class="font-semibold text-[14.5px] leading-snug underline underline-offset-2">Movie in the Park</p>
-              <p class="text-xs mt-0.5"><span class="text-[color:var(--forest)] font-semibold">Fri, Jul 17 · 8:30 PM</span><span class="text-[color:var(--stone)]"> · Miller Park · </span><span class="font-semibold" style="color: var(--terracotta-deep);">Free</span></p>
-              <p class="text-[13px] mt-1.5">Blankets, snacks, and a movie under the stars.</p>
-            </div>
+          <div class="px-0.5 py-3">
+            <p class="font-semibold text-[14.5px] leading-snug underline underline-offset-2">Jazz Night at the Castle Theatre</p>
+            <p class="text-xs mt-0.5"><span class="text-[color:var(--forest)] font-semibold">7:30 PM</span><span class="text-[color:var(--stone)]"> · The Castle Theatre · </span><span class="font-semibold" style="color: var(--terracotta-deep);">$12</span></p>
+            <p class="text-[13px] mt-1.5">Live horns, low lights, and an easy Friday night downtown.</p>
           </div>
 
-          <!-- second day peeking in before the fade -->
-          <div class="flex items-center gap-2 mt-4">
-            <div class="w-8 shrink-0 rounded-md overflow-hidden border border-[color:var(--linen)]">
-              <p class="text-center text-[8px] font-bold uppercase tracking-wider leading-none py-[3px]" style="background: var(--forest); color: var(--cream);">Sat</p>
-              <p class="text-center font-display font-bold text-[13px] leading-none py-[3px] bg-white">18</p>
-            </div>
+          <div class="px-0.5 py-3 border-t border-dashed border-[color:var(--linen)]">
+            <p class="font-semibold text-[14.5px] leading-snug underline underline-offset-2">Movie in the Park</p>
+            <p class="text-xs mt-0.5"><span class="text-[color:var(--forest)] font-semibold">8:30 PM</span><span class="text-[color:var(--stone)]"> · Miller Park · </span><span class="font-semibold" style="color: var(--terracotta-deep);">Free</span></p>
+            <p class="text-[13px] mt-1.5">Bring a low-back chair, a blanket, and snacks for a movie under the stars.</p>
+          </div>
+
+          <!-- next day peeking in before the fade -->
+          <div class="flex items-center gap-2">
             <p class="font-display font-bold text-[14px] text-[color:var(--forest)] whitespace-nowrap">Saturday, July 18</p>
             <div class="flex-1 border-t-2 border-dashed border-[color:var(--sage)]"></div>
-          </div>
-
-          <div class="card mt-2.5 p-3.5">
-            <p class="font-semibold text-[14.5px] leading-snug underline underline-offset-2">Saturday Morning Farmers Market</p>
-            <p class="text-xs mt-0.5"><span class="text-[color:var(--forest)] font-semibold">Sat, Jul 18 · 8:00 AM</span><span class="text-[color:var(--stone)]"> · Downtown Bloomington · </span><span class="font-semibold" style="color: var(--terracotta-deep);">Free</span></p>
-            <p class="text-[13px] mt-1.5">Local food, flowers, and a slow walk downtown.</p>
           </div>
         </div>
       </div>
@@ -166,10 +163,12 @@
 <!-- How it works -->
 <section class="max-w-5xl mx-auto px-5 text-center">
   <h2 class="font-display font-semibold text-3xl inline-flex items-center gap-3">
-    <!-- hand-drawn arrow doodle -->
-    <svg width="32" height="26" viewBox="0 0 32 26" fill="none" aria-hidden="true" class="shrink-0">
-      <path d="M3 20 C 10 8 20 6 28 10" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round" fill="none"/>
-      <path d="M23.5 4.5 L 28 10 L 21 11.5" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <!-- folded local guide: distinct from the arrows connecting the steps -->
+    <svg width="34" height="30" viewBox="0 0 34 30" fill="none" aria-hidden="true" class="shrink-0">
+      <path d="M3 7.5 L12 4 L22 7 L31 3.5 V23 L22 26.5 L12 23.5 L3 27 Z" stroke="var(--forest)" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M12 4 V23.5 M22 7 V26.5" stroke="var(--sage)" stroke-width="1.5"/>
+      <path d="M7 19 C10 15 14 18 17 14 C19 11.5 23 13 26 9" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 4"/>
+      <circle cx="26.5" cy="8.5" r="2.4" fill="var(--mustard)" stroke="var(--terracotta-deep)" stroke-width="1.2"/>
     </svg>
     How it works
   </h2>
