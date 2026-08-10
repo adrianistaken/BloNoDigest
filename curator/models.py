@@ -379,6 +379,7 @@ class DigestEvent(models.Model):
     section = models.CharField(max_length=30, choices=DIGEST_SECTIONS)
     position = models.PositiveIntegerField(default=0)
     custom_title = models.CharField(max_length=300, blank=True)
+    custom_time = models.CharField(max_length=50, blank=True)
     custom_location = models.CharField(max_length=300, blank=True)
     custom_blurb = models.TextField(blank=True)
     custom_price = models.CharField(max_length=100, blank=True)
@@ -417,6 +418,19 @@ class DigestEvent(models.Model):
         if " " in cut:
             cut = cut[: cut.rfind(" ")]
         return cut.rstrip(".,;:!-–—") + "…"
+
+    @property
+    def display_time(self):
+        """Curator-entered time wins; a single "-" hides the time entirely;
+        blank falls back to the imported time when it is known."""
+        custom = self.custom_time.strip()
+        if custom == "-":
+            return ""
+        if custom:
+            return custom
+        if not self.event.time_is_known:
+            return ""
+        return timezone.localtime(self.event.starts_at).strftime("%I:%M %p").lstrip("0")
 
     # City is implied for local venues in a local digest; it only earns its
     # spot on the meta line when the event is outside the core towns.

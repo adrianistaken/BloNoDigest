@@ -72,6 +72,24 @@ class NormalizeTests(TestCase):
         dt, known = normalize_datetime("call for details", "America/Chicago")
         self.assertIsNone(dt)
 
+    def test_yearless_dates_infer_nearest_occurrence(self):
+        from django.utils import timezone as djtz
+
+        today = djtz.localdate()
+        # venue-style "Sat, Jul 25" (no year): assume this year when recent/upcoming
+        dt, known = normalize_datetime("Sat, Jul 25", "America/Chicago")
+        self.assertIsNotNone(dt)
+        self.assertIn(dt.year, (today.year, today.year + 1))
+        self.assertEqual((dt.month, dt.day), (7, 25))
+        self.assertFalse(known)
+        # a month/day far in the past rolls to next year
+        past = today - timedelta(days=120)
+        dt2, _ = normalize_datetime(past.strftime("%B %d"), "America/Chicago")
+        self.assertEqual(dt2.year, today.year + 1)
+        # fragments with no real month/day still fail
+        self.assertIsNone(normalize_datetime("Every Tuesday at 5:00pm", "America/Chicago")[0])
+        self.assertIsNone(normalize_datetime("Available for select events", "America/Chicago")[0])
+
     def test_parse_location_text(self):
         parsed = parse_location_text("Miller Park Zoo, 1020 S Morris Ave, Bloomington, IL")
         self.assertEqual(parsed["venue_name"], "Miller Park Zoo")
@@ -309,6 +327,35 @@ class ConnectorExtractionTests(TestCase):
         all_day = next(e for e in events if e.title == "Book Sale")
         self.assertEqual(all_day.start, "2026-07-11")  # no invented time
 
+    def test_html_config_link_template_and_time_range_start(self):
+        """Webflow-style hidden lists (slug text, no anchor) and time ranges."""
+        region = make_region()
+        source = make_source(
+            region,
+            source_type="html_config",
+            parser_config={
+                "event_card_selector": ".show-item",
+                "title_selector": ".show-name",
+                "date_selector": ".show-date",
+                "time_selector": ".show-time",
+                "time_take_start": True,
+                "link_text_selector": ".show-slug",
+                "link_template": "https://venue.example.com/shows/{text}",
+            },
+        )
+        html = """
+        <div class="show-item">
+          <div class="show-name">Big Band Night</div>
+          <div class="show-date">November 1, 2026</div>
+          <div class="show-time">7:30pm – 10:00pm</div>
+          <div class="show-slug">big-band-night-01-nov</div>
+        </div>
+        """
+        events = HTMLConfigConnector(source).extract_from_html(html)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].url, "https://venue.example.com/shows/big-band-night-01-nov")
+        self.assertEqual(events[0].start, "November 1, 2026 7:30pm")  # range start only
+
     def test_jsonld_image_extraction(self):
         html = """
         <script type="application/ld+json">
@@ -532,6 +579,37 @@ class DigestTests(TestCase):
         html, _ = render_digest(issue, "#")
         self.assertNotIn("Participants must register", de.display_price)
 
+    def test_custom_time_override_saves_and_renders(self):
+        event = self._event("Evening Fights", day_offset=1, hour=19)
+        issue = generate_digest_issue("bloomington-normal")
+        de = issue.digest_events.get(event=event)
+        self.assertEqual(de.display_time, "7:00 PM")
+
+        User.objects.create_superuser("timekeeper", "time@example.com", "pass12345")
+        self.client.login(username="timekeeper", password="pass12345")
+        page = self.client.get(f"/admin-dashboard/digests/{issue.pk}/")
+        self.assertContains(
+            page,
+            "https://chatgpt.com/g/g-6a7878b8b06c8191b384997f9ed902b2-blonodigest-event-summarizer",
+        )
+        self.client.post(
+            f"/admin-dashboard/digests/{issue.pk}/",
+            {
+                "action": "set_blurb",
+                "digest_event_id": de.pk,
+                "custom_time": "Doors 6:00 PM; fights 7:00 PM",
+            },
+        )
+        de.refresh_from_db()
+        self.assertEqual(de.custom_time, "Doors 6:00 PM; fights 7:00 PM")
+        self.assertEqual(de.display_time, "Doors 6:00 PM; fights 7:00 PM")
+        html, text = render_digest(issue, "#")
+        self.assertIn("Doors 6:00 PM; fights 7:00 PM", html)
+        self.assertIn("Doors 6:00 PM; fights 7:00 PM", text)
+
+        de.custom_time = "-"
+        self.assertEqual(de.display_time, "")
+
     def test_display_title_truncates_unless_custom(self):
         from .models import DigestEvent
 
@@ -609,12 +687,16 @@ class DigestTests(TestCase):
             self._event(f"Family Thing {i}", day_offset=i % 3, hour=9 + i % 10, categories=["family"], score=6)
         issue = generate_digest_issue("bloomington-normal")
 
-        html, text = render_digest(issue, "https://example.com/unsub")
+        with self.settings(EMAIL_POSTAL_ADDRESS="(address pending PO Box)"):
+            html, text = render_digest(issue, "https://example.com/unsub")
         # the strongest spine event is spotlighted and not repeated below
         self.assertIn("Pick of the week", html)
         self.assertEqual(html.count("Headline Act"), 1)
         self.assertIn("PICK OF THE WEEK", text)
-        self.assertIn("Go make a weekend of it.", html)
+        self.assertNotIn("Go make a weekend of it.", html)
+        self.assertNotIn("Go make a weekend of it.", text)
+        self.assertNotIn("address pending PO Box", html)
+        self.assertNotIn("address pending PO Box", text)
         # spine day headers render for the weekend days
         self.assertIn(self.friday.strftime("%A, %B"), html)
 
@@ -854,6 +936,16 @@ class DigestTests(TestCase):
         self.assertIn(issue.public_path, html)
         self.assertIn("Unsubscribe", html)  # email keeps its footer
         self.assertIn(issue.public_path, text)
+
+    def test_event_titles_are_underlined_links_without_details_cta(self):
+        self._event("Farmers Market", day_offset=1, hour=9, categories=["market"])
+        issue = generate_digest_issue("bloomington-normal")
+
+        html, _ = render_digest(issue, "https://example.com/unsub")
+
+        self.assertIn('text-decoration:underline', html)
+        self.assertNotIn('Details&nbsp;', html)
+        self.assertNotIn('>Details ', html)
 
     def test_welcome_email_links_latest_sent_issue(self):
         from .emails import send_welcome_email

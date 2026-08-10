@@ -9,6 +9,10 @@
     <p class="text-sm text-slate-500">{{ issue.target_start_date }} – {{ issue.target_end_date }} · status: <b>{{ issue.status }}</b>{% if issue.sent_at %} · sent {{ issue.sent_at }}{% endif %}</p>
   </div>
   <div class="flex gap-2 items-center">
+    <a href="https://chatgpt.com/g/g-6a7878b8b06c8191b384997f9ed902b2-blonodigest-event-summarizer"
+       target="_blank" rel="noopener"
+       class="bg-blue-50 text-blue-700 border border-blue-200 text-sm px-4 py-2 rounded hover:bg-blue-100 whitespace-nowrap"
+       title="Open the BloNoDigest Event Summarizer in a new tab">Event Summarizer ↗</a>
     <form method="post" class="flex gap-2 items-center">
       {% csrf_token %}
       <input type="email" name="test_email" placeholder="test @ (default: admin)" class="border rounded px-2 py-1.5 text-sm">

@@ -333,11 +333,14 @@ def _digest_event_action(request, issue, action):
     )
     if action == "set_blurb":
         digest_event.custom_title = request.POST.get("custom_title", "").strip()[:300]
+        digest_event.custom_time = request.POST.get("custom_time", "").strip()[:50]
         digest_event.custom_location = request.POST.get("custom_location", "").strip()[:300]
         digest_event.custom_price = request.POST.get("custom_price", "").strip()[:100]
         digest_event.custom_blurb = request.POST.get("custom_blurb", "")
         digest_event.save(
-            update_fields=["custom_title", "custom_location", "custom_price", "custom_blurb"]
+            update_fields=[
+                "custom_title", "custom_time", "custom_location", "custom_price", "custom_blurb"
+            ]
         )
     elif action == "set_placement":
         section_id = request.POST.get("custom_section_id") or None

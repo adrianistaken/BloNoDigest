@@ -3,7 +3,7 @@ shaped like the Event model, or is rejected by `is_valid_event`.
 """
 
 import re
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from zoneinfo import ZoneInfo
 
@@ -82,8 +82,23 @@ def normalize_datetime(value, region_tz):
             dt = dateparser.parse(text, fuzzy=True, default=datetime(1900, 1, 1))
         except (ValueError, OverflowError):
             return None, False
-        if dt.year == 1900:  # parser found no real date, only fragments
-            return None, False
+        if dt.year == 1900:
+            # No explicit year. Venue sites list upcoming events without one
+            # ("Sat, Jul 25"), so infer the nearest sensible occurrence — but
+            # only when the string names a REAL month/day. Parsing against two
+            # different defaults exposes fragments like "Every Tuesday at 5pm":
+            # a real month/day stays identical under both defaults.
+            try:
+                probe_a = dateparser.parse(text, fuzzy=True, default=datetime(2001, 1, 1))
+                probe_b = dateparser.parse(text, fuzzy=True, default=datetime(2002, 2, 2))
+            except (ValueError, OverflowError):
+                return None, False
+            if (probe_a.month, probe_a.day) != (probe_b.month, probe_b.day):
+                return None, False  # month/day came from the defaults, not the text
+            today = datetime.now(tz).date()
+            dt = dt.replace(year=today.year)
+            if dt.date() < today - timedelta(days=45):  # e.g. "Jan 5" seen in December
+                dt = dt.replace(year=today.year + 1)
         # Heuristic: if the string never mentions a time, treat it as date-only
         has_time = bool(re.search(r"\d{1,2}:\d{2}|\d{1,2}\s*(am|pm)|T\d{2}", text, re.IGNORECASE))
         if not has_time:
