@@ -31,6 +31,7 @@ card carries no location of its own (a library doesn't repeat its name on every
 event).
 """
 
+import re
 import time
 from datetime import timedelta
 from urllib.parse import urljoin
@@ -98,12 +99,20 @@ class HTMLConfigConnector(BaseConnector):
         else:
             date_text = self._text(card, "date_selector")
             time_text = self._text(card, "time_selector")
+            if time_text and self.config.get("time_take_start"):
+                # "10:30am – 1:00pm" → "10:30am" (ranges confuse date parsing)
+                time_text = re.split(r"\s+to\s+|\s*[–—]\s*|\s+-\s+", time_text)[0].strip()
             start = f"{date_text} {time_text}".strip() or None
 
         link = ""
         link_node = card.select_one(self.config.get("link_selector", "a"))
         if link_node and link_node.get("href"):
             link = urljoin(base_url, link_node["href"])
+        elif self.config.get("link_template") and self.config.get("link_text_selector"):
+            # Cards with a slug as text but no anchor (e.g. Webflow CMS lists)
+            slug = self._text(card, "link_text_selector")
+            if slug:
+                link = self.config["link_template"].replace("{text}", slug)
 
         location_text = self._text(card, "location_selector")
         return RawEvent(

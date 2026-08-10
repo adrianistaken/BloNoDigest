@@ -49,20 +49,18 @@
     <div style="background:#FFFFFF; border:2px solid #D5A640; border-radius:14px; margin-top:26px; padding:16px 18px 17px;">
       <span style="display:inline-block; background:#D5A640; color:#2E302C; border-radius:999px; padding:3px 12px; font-size:11px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">&#9733; Pick of the week</span>
       <p style="font-size:12px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase; color:#B15D3A; margin:11px 0 0;">
-        {{ featured.event.starts_at|date:"D, M j" }}{% if featured.event.time_is_known %} &middot; {{ featured.event.starts_at|date:"g:i A" }}{% endif %}
+        {{ featured.event.starts_at|date:"D, M j" }}{% if featured.display_time %} &middot; {{ featured.display_time }}{% endif %}
       </p>
       <p style="font-family: Georgia, 'Times New Roman', serif; font-size:20px; font-weight:bold; margin:5px 0 0; line-height:1.25;">
-        {% if featured.event.source_url %}<a href="{{ featured.event.source_url }}" style="color:#2E302C; text-decoration:none;">{{ featured.display_title }}</a>{% else %}{{ featured.display_title }}{% endif %}
+        {% if featured.event.source_url %}<a href="{{ featured.event.source_url }}" style="color:#2E302C; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px;">{{ featured.display_title }}</a>{% else %}{{ featured.display_title }}{% endif %}
       </p>
       <p style="font-size:13.5px; color:#6F6A60; margin:4px 0 0;">
         {{ featured.display_location }}{% if featured.display_price %} &middot; <span style="color:#294C3A; font-weight:600;">{{ featured.display_price }}</span>{% endif %}
       </p>
       {% if featured.blurb %}
       <p style="font-size:14.5px; line-height:1.5; color:#2E302C; margin:8px 0 0;">
-        {{ featured.blurb }} <a href="{{ featured.event.source_url }}" style="color:#C96F4A; font-weight:600; text-decoration:none; white-space:nowrap;">Details&nbsp;&#8594;</a>
+        {{ featured.blurb }}
       </p>
-      {% elif featured.event.source_url %}
-      <p style="margin:8px 0 0;"><a href="{{ featured.event.source_url }}" style="font-size:13.5px; color:#C96F4A; font-weight:600; text-decoration:none;">Details &#8594;</a></p>
       {% endif %}
     </div>
     {% endif %}
@@ -94,17 +92,15 @@
         {% for de in day.events %}
         <div style="padding:13px 2px;{% if not forloop.first %} border-top:1px dashed #DCD3C0;{% endif %}">
           <p style="font-size:15px; font-weight:600; margin:0; line-height:1.3;">
-            {% if de.event.source_url %}<a href="{{ de.event.source_url }}" style="color:#2E302C; text-decoration:none;">{{ de.display_title }}</a>{% else %}{{ de.display_title }}{% endif %}
+            {% if de.event.source_url %}<a href="{{ de.event.source_url }}" style="color:#2E302C; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px;">{{ de.display_title }}</a>{% else %}{{ de.display_title }}{% endif %}
           </p>
           <p style="font-size:13px; color:#6F6A60; margin:3px 0 0;">
-            {% if de.event.time_is_known %}<span style="color:#294C3A; font-weight:600;">{{ de.event.starts_at|date:"g:i A" }}</span> &middot; {% endif %}{{ de.display_location }}{% if de.display_price %} &middot; <span style="color:#B15D3A; font-weight:600;">{{ de.display_price }}</span>{% endif %}
+            {% if de.display_time %}<span style="color:#294C3A; font-weight:600;">{{ de.display_time }}</span> &middot; {% endif %}{{ de.display_location }}{% if de.display_price %} &middot; <span style="color:#B15D3A; font-weight:600;">{{ de.display_price }}</span>{% endif %}
           </p>
           {% if de.blurb %}
           <p style="font-size:13.5px; line-height:1.5; color:#2E302C; margin:4px 0 0;">
-            {{ de.blurb }} <a href="{{ de.event.source_url }}" style="color:#C96F4A; font-weight:600; text-decoration:none; white-space:nowrap;">Details&nbsp;&#8594;</a>
+            {{ de.blurb }}
           </p>
-          {% elif de.event.source_url %}
-          <p style="margin:4px 0 0;"><a href="{{ de.event.source_url }}" style="font-size:13px; color:#C96F4A; font-weight:600; text-decoration:none;">Details &#8594;</a></p>
           {% endif %}
         </div>
         {% endfor %}
@@ -143,17 +139,15 @@
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
             <td style="vertical-align:top;">
               <p style="font-size:15px; font-weight:600; margin:0; line-height:1.3;">
-                {% if de.event.source_url %}<a href="{{ de.event.source_url }}" style="color:#2E302C; text-decoration:none;">{{ de.display_title }}</a>{% else %}{{ de.display_title }}{% endif %}
+                {% if de.event.source_url %}<a href="{{ de.event.source_url }}" style="color:#2E302C; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px;">{{ de.display_title }}</a>{% else %}{{ de.display_title }}{% endif %}
               </p>
               <p style="font-size:13px; color:#6F6A60; margin:3px 0 0;">
-                {% if chunk.date %}{% if de.event.time_is_known %}<span style="color:#294C3A; font-weight:600;">{{ de.event.starts_at|date:"g:i A" }}</span> &middot; {% endif %}{% else %}<span style="color:#294C3A; font-weight:600;">{{ de.event.starts_at|date:"D, M j" }}{% if de.event.time_is_known %} &middot; {{ de.event.starts_at|date:"g:i A" }}{% endif %}</span> &middot; {% endif %}{{ de.display_location }}{% if de.display_price %} &middot; <span style="color:#B15D3A; font-weight:600;">{{ de.display_price }}</span>{% endif %}
+                {% if chunk.date %}{% if de.display_time %}<span style="color:#294C3A; font-weight:600;">{{ de.display_time }}</span> &middot; {% endif %}{% else %}<span style="color:#294C3A; font-weight:600;">{{ de.event.starts_at|date:"D, M j" }}{% if de.display_time %} &middot; {{ de.display_time }}{% endif %}</span> &middot; {% endif %}{{ de.display_location }}{% if de.display_price %} &middot; <span style="color:#B15D3A; font-weight:600;">{{ de.display_price }}</span>{% endif %}
               </p>
               {% if de.blurb %}
               <p style="font-size:13.5px; line-height:1.5; color:#2E302C; margin:4px 0 0;">
-                {{ de.blurb }} <a href="{{ de.event.source_url }}" style="color:#C96F4A; font-weight:600; text-decoration:none; white-space:nowrap;">Details&nbsp;&#8594;</a>
+                {{ de.blurb }}
               </p>
-              {% elif de.event.source_url %}
-              <p style="margin:4px 0 0;"><a href="{{ de.event.source_url }}" style="font-size:13px; color:#C96F4A; font-weight:600; text-decoration:none;">Details &#8594;</a></p>
               {% endif %}
             </td>
           </tr></table>
@@ -177,13 +171,8 @@
     </div>
     {% endif %}
 
-    <!-- Sign-off: a person made this -->
-    <p style="font-family: Georgia, 'Times New Roman', serif; font-style:italic; font-size:15px; color:#294C3A; text-align:center; margin:30px 0 0;">
-      Go make a weekend of it. <span style="white-space:nowrap;">&mdash; Adrian</span>
-    </p>
-
     <!-- Reader response box -->
-    <div style="background:#EEE5D5; border-radius:14px; padding:16px 18px; margin-top:16px; text-align:center;">
+    <div style="background:#EEE5D5; border-radius:14px; padding:16px 18px; margin-top:30px; text-align:center;">
       <p style="font-size:15px; font-weight:600; color:#294C3A; margin:0;">Did we miss something good?</p>
       <p style="font-size:14px; color:#2E302C; margin:5px 0 0;">
         {% if web_version %}We read everything.{% else %}Hit reply and tell us — we read everything.{% endif %}

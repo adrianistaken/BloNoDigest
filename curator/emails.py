@@ -20,6 +20,12 @@ logger = logging.getLogger("curator.emails")
 DAY_SUBHEAD_THRESHOLD = 6
 
 
+def _display_postal_address():
+    """Suppress a temporary placeholder until a real address is configured."""
+    address = settings.EMAIL_POSTAL_ADDRESS.strip()
+    return "" if "pending" in address.casefold() else address
+
+
 def _timed_first(events):
     """Chronological, but unknown-time events last — they're stored at
     midnight, and listing them first would misread as "starts early"."""
@@ -153,7 +159,7 @@ def render_digest(issue, unsubscribe_url, web_version=False):
         "sections": sections,
         "unsubscribe_url": unsubscribe_url,
         "site_base_url": settings.SITE_BASE_URL,
-        "postal_address": settings.EMAIL_POSTAL_ADDRESS,
+        "postal_address": _display_postal_address(),
         "web_version": web_version,
         "issue_url": settings.SITE_BASE_URL + issue.public_path,
     }
@@ -227,7 +233,7 @@ def send_welcome_email(subscriber):
         context = {
             "unsubscribe_url": f"{settings.SITE_BASE_URL}/unsubscribe/{subscriber.unsubscribe_token}/",
             "site_base_url": settings.SITE_BASE_URL,
-            "postal_address": settings.EMAIL_POSTAL_ADDRESS,
+            "postal_address": _display_postal_address(),
             "latest_issue_url": settings.SITE_BASE_URL + latest.public_path if latest else "",
         }
         message = EmailMultiAlternatives(

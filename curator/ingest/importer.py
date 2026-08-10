@@ -66,6 +66,13 @@ def import_source(source: EventSource) -> ImportRun:
                     starts_at=event.starts_at if event.time_is_known else None,
                     tags=event.tags,
                 )
+                # Single-purpose venues (a jazz club, a concert hall) know their
+                # own category better than keyword rules ever will
+                for default in source.parser_config.get("default_categories", []):
+                    if default not in event.categories:
+                        event.categories.append(default)
+                if len(event.categories) > 1 and "other" in event.categories:
+                    event.categories.remove("other")
                 event.quality_score = score_event(event, source_link_count=event.source_links.count())
                 event.save(update_fields=["categories", "quality_score", "updated_at"])
 

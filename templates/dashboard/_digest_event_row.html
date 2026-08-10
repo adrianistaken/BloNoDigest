@@ -14,7 +14,7 @@
       {% else %}
       <span class="text-[10px] font-semibold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded align-middle" title="One-liner: title + time + venue only, unless you write a blurb">one-liner</span>
       {% endif %}
-      <p class="text-xs text-slate-500">{{ de.event.starts_at|date:"D M j" }}{% if de.event.time_is_known %}, {{ de.event.starts_at|date:"g:i A" }}{% else %}, time TBD{% endif %} · {{ de.event.location_display }} · score {{ de.event.quality_score }}</p>
+      <p class="text-xs text-slate-500">{{ de.event.starts_at|date:"D M j" }}{% if de.display_time %}, {{ de.display_time }}{% else %}, time TBD{% endif %} · {{ de.event.location_display }} · score {{ de.event.quality_score }}</p>
     </div>
     <div class="flex gap-1 shrink-0">
       <form method="post" class="js-live">{% csrf_token %}
@@ -24,11 +24,12 @@
     </div>
   </div>
   <details class="mt-1" data-de="{{ de.pk }}">
-    <summary class="text-xs text-slate-500 cursor-pointer">title / location / blurb / placement</summary>
+    <summary class="text-xs text-slate-500 cursor-pointer">title / time / location / price / blurb / placement</summary>
     <form method="post" class="mt-2 space-y-2 js-live">
       {% csrf_token %}
       <input type="hidden" name="digest_event_id" value="{{ de.pk }}">
       <input name="custom_title" value="{{ de.custom_title }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom title (defaults to event title, auto-shortened if long)">
+      <input name="custom_time" value="{{ de.custom_time }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom time (defaults to source time; enter just - to hide it)">
       <input name="custom_location" value="{{ de.custom_location }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom location (defaults to venue; city added only outside Bloomington-Normal)">
       <input name="custom_price" value="{{ de.custom_price }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom price (defaults to source price; enter just - to hide it)">
       <textarea name="custom_blurb" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom blurb (defaults to event description)">{{ de.custom_blurb }}</textarea>
