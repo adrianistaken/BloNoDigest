@@ -12,6 +12,7 @@ dashboard_patterns = (
         path("events/", dashboard_views.events, name="events"),
         path("events/<int:event_id>/", dashboard_views.event_detail, name="event_detail"),
         path("events/<int:event_id>/action/", dashboard_views.event_action, name="event_action"),
+        path("ai/shorten-description/", dashboard_views.shorten_description, name="shorten_description"),
         path("digests/", dashboard_views.digests, name="digests"),
         path("digests/<int:issue_id>/", dashboard_views.digest_detail, name="digest_detail"),
         path("digests/<int:issue_id>/preview/", dashboard_views.digest_preview, name="digest_preview"),

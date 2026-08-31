@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth.models import User
@@ -6,6 +7,7 @@ from django.core import mail
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from .ai import shorten_event_description
 from .digests import generate_digest_issue, pick_section, upcoming_weekend
 from .emails import render_digest, send_digest
 from .ingest.categorize import categorize
@@ -588,10 +590,7 @@ class DigestTests(TestCase):
         User.objects.create_superuser("timekeeper", "time@example.com", "pass12345")
         self.client.login(username="timekeeper", password="pass12345")
         page = self.client.get(f"/admin-dashboard/digests/{issue.pk}/")
-        self.assertContains(
-            page,
-            "https://chatgpt.com/g/g-6a7878b8b06c8191b384997f9ed902b2-blonodigest-event-summarizer",
-        )
+        self.assertContains(page, "Shorten with AI")
         self.client.post(
             f"/admin-dashboard/digests/{issue.pk}/",
             {
@@ -1064,3 +1063,83 @@ class DashboardAuthTests(TestCase):
         for url in ("/admin-dashboard/", "/admin-dashboard/sources/", "/admin-dashboard/events/",
                     "/admin-dashboard/digests/", "/admin-dashboard/subscribers/", "/admin-dashboard/import-runs/"):
             self.assertEqual(self.client.get(url).status_code, 200, url)
+
+
+class AIShorteningTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser("ai-editor", "ai@example.com", "pass12345")
+        self.url = "/admin-dashboard/ai/shorten-description/"
+
+    def test_endpoint_requires_staff(self):
+        response = self.client.post(self.url, {"description": "A long event description."})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("login", response["Location"])
+
+    def test_rejects_empty_and_oversized_descriptions(self):
+        self.client.login(username="ai-editor", password="pass12345")
+        self.assertEqual(self.client.post(self.url, {"description": ""}).status_code, 400)
+        self.assertEqual(
+            self.client.post(self.url, {"description": "x" * 20_001}).status_code,
+            400,
+        )
+
+    @patch("curator.dashboard_views.shorten_event_description")
+    def test_returns_editable_shortened_copy(self, shorten):
+        shorten.return_value = "Live music, local food, and family activities downtown."
+        self.client.login(username="ai-editor", password="pass12345")
+
+        response = self.client.post(
+            self.url,
+            {"description": "Join us for an incredible full day of festivities..."},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["description"], shorten.return_value)
+        shorten.assert_called_once_with(
+            "Join us for an incredible full day of festivities..."
+        )
+
+    def test_event_editor_renders_ai_review_control(self):
+        region = make_region()
+        event = Event.objects.create(
+            region=region,
+            canonical_title="Downtown Festival",
+            description="A much longer source description.",
+            starts_at=timezone.now() + timedelta(days=2),
+            city="Bloomington",
+            source_url="https://example.com/festival",
+        )
+        self.client.login(username="ai-editor", password="pass12345")
+
+        response = self.client.get(f"/admin-dashboard/events/{event.pk}/")
+
+        self.assertContains(response, "Shorten with AI")
+        self.assertContains(response, "Review it, make any edits, then save changes.")
+
+    @override_settings(
+        OPENAI_API_KEY="test-key",
+        OPENAI_EVENT_SHORTEN_MODEL="gpt-5-mini",
+        OPENAI_EVENT_SHORTEN_INSTRUCTIONS="Write concise copy.",
+        OPENAI_TIMEOUT_SECONDS=12,
+    )
+    @patch("curator.ai.requests.post")
+    def test_openai_request_is_server_side_and_reads_response_text(self, post):
+        post.return_value.json.return_value = {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {"type": "output_text", "text": "A crisp newsletter description."}
+                    ],
+                }
+            ]
+        }
+
+        result = shorten_event_description("Long promotional source copy.")
+
+        self.assertEqual(result, "A crisp newsletter description.")
+        request = post.call_args
+        self.assertEqual(request.kwargs["headers"]["Authorization"], "Bearer test-key")
+        self.assertEqual(request.kwargs["json"]["input"], "Long promotional source copy.")
+        self.assertFalse(request.kwargs["json"]["store"])
+        self.assertEqual(request.kwargs["timeout"], 12)

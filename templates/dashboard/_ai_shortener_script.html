@@ -1,0 +1,64 @@
+<script>
+(() => {
+  const endpoint = "{% url 'dashboard:shorten_description' %}";
+  const csrfToken = document.querySelector("input[name='csrfmiddlewaretoken']")?.value;
+
+  document.addEventListener("click", async (event) => {
+      const button = event.target.closest(".js-ai-shorten");
+      if (!button) return;
+      const scope = button.closest("form") || document;
+      const source = scope.querySelector(button.dataset.source);
+      const target = scope.querySelector(button.dataset.target);
+      const status = scope.querySelector(".js-ai-status");
+      const label = button.querySelector(".js-ai-label");
+      const originalLabel = label.textContent;
+
+      const showStatus = (message, isError = false) => {
+        status.textContent = message;
+        status.classList.remove("hidden", "border-green-200", "bg-green-50", "text-green-800", "border-red-200", "bg-red-50", "text-red-700", "text-slate-500");
+        if (status.classList.contains("rounded")) {
+          status.classList.add(...(isError
+            ? ["border-red-200", "bg-red-50", "text-red-700"]
+            : ["border-green-200", "bg-green-50", "text-green-800"]));
+        } else {
+          status.classList.add(isError ? "text-red-700" : "text-slate-500");
+        }
+      };
+
+      if (!source?.value.trim() || !target) {
+        showStatus("Add a description before shortening it.", true);
+        return;
+      }
+
+      button.disabled = true;
+      label.textContent = "Shortening…";
+      if (status) {
+        status.textContent = "Creating an editable draft…";
+        status.classList.remove("hidden");
+      }
+
+      try {
+        const body = new FormData();
+        body.append("description", source.value);
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {"X-CSRFToken": csrfToken},
+          body,
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "AI shortening failed. Try again.");
+
+        target.value = result.description;
+        target.dispatchEvent(new Event("input", {bubbles: true}));
+        target.focus();
+        showStatus("Draft ready. Review it, make any edits, then save changes.");
+        label.textContent = "Regenerate";
+      } catch (error) {
+        showStatus(error.message || "AI shortening failed. Try again.", true);
+        label.textContent = originalLabel;
+      } finally {
+        button.disabled = false;
+      }
+  });
+})();
+</script>

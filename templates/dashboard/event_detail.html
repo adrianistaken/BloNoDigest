@@ -58,13 +58,26 @@
   {% csrf_token %}
   {% for field in form %}
     <div class="{% if field.name == 'description' or field.name == 'editorial_notes' or field.name == 'categories' %}sm:col-span-2{% endif %}">
-      <label class="block text-sm font-bold text-slate-600">{{ field.label }}</label>
+      <div class="flex items-center justify-between gap-3">
+        <label class="block text-sm font-bold text-slate-600" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {% if field.name == 'description' %}
+          <button type="button"
+                  class="js-ai-shorten inline-flex items-center gap-1.5 rounded border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-60"
+                  data-target="#{{ field.id_for_label }}"
+                  data-source="#{{ field.id_for_label }}">
+            <span aria-hidden="true">✦</span><span class="js-ai-label">Shorten with AI</span>
+          </button>
+        {% endif %}
+      </div>
       <div class="mt-1 [&_input]:w-full [&_input]:border [&_input]:rounded [&_input]:px-2 [&_input]:py-1.5
                   [&_textarea]:w-full [&_textarea]:border [&_textarea]:rounded [&_textarea]:px-2 [&_textarea]:py-1.5
                   [&_select]:border [&_select]:rounded [&_select]:px-2 [&_select]:py-1.5
                   {% if field.name == 'categories' %}[&_input]:!w-auto [&_ul]:grid [&_ul]:grid-cols-3 [&_ul]:gap-1 [&_li]:flex [&_li]:items-center [&_label]:!font-normal{% endif %}">
         {{ field }}
       </div>
+      {% if field.name == 'description' %}
+        <div class="js-ai-status mt-2 hidden rounded border px-3 py-2 text-xs" role="status" aria-live="polite"></div>
+      {% endif %}
       {% if field.errors %}<p class="text-xs text-red-600 mt-1">{{ field.errors.0 }}</p>{% endif %}
     </div>
   {% endfor %}
@@ -73,4 +86,8 @@
     <a href="{% url 'dashboard:events' %}" class="ml-3 text-slate-500 underline text-sm">back to events</a>
   </div>
 </form>
+{% endblock %}
+
+{% block scripts %}
+  {% include "dashboard/_ai_shortener_script.html" %}
 {% endblock %}

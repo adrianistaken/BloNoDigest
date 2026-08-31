@@ -33,6 +33,16 @@
       <input name="custom_location" value="{{ de.custom_location }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom location (defaults to venue; city added only outside Bloomington-Normal)">
       <input name="custom_price" value="{{ de.custom_price }}" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom price (defaults to source price; enter just - to hide it)">
       <textarea name="custom_blurb" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="Custom blurb (defaults to event description)">{{ de.custom_blurb }}</textarea>
+      <textarea class="js-ai-source hidden" aria-hidden="true" tabindex="-1">{{ de.event.description }}</textarea>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button"
+                class="js-ai-shorten inline-flex items-center gap-1.5 rounded border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-60"
+                data-target="textarea[name='custom_blurb']"
+                data-source=".js-ai-source">
+          <span aria-hidden="true">✦</span><span class="js-ai-label">Shorten with AI</span>
+        </button>
+        <span class="js-ai-status hidden text-xs" role="status" aria-live="polite"></span>
+      </div>
       <div class="flex flex-wrap gap-2 items-center">
         <button name="action" value="set_blurb" class="bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded text-xs">Save changes</button>
         <select name="custom_section_id" class="border rounded px-2 py-1 text-xs">

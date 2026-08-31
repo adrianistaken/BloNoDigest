@@ -7,12 +7,13 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
+from .ai import AIShorteningError, shorten_event_description
 from .automations import get_automations
 from .digests import generate_digest_issue, upcoming_weekend
 from .emails import email_layout, featured_pick, render_digest, send_digest, send_test_email
@@ -193,6 +194,24 @@ def event_detail(request, event_id):
         "source_links": event.source_links.select_related("source"),
     }
     return render(request, "dashboard/event_detail.html", context)
+
+
+@staff_member_required
+@require_POST
+def shorten_description(request):
+    description = request.POST.get("description", "").strip()
+    if not description:
+        return JsonResponse({"error": "Add a description before shortening it."}, status=400)
+    if len(description) > 20_000:
+        return JsonResponse(
+            {"error": "This description is too long to shorten. Trim it below 20,000 characters."},
+            status=400,
+        )
+    try:
+        shortened = shorten_event_description(description)
+    except AIShorteningError as exc:
+        return JsonResponse({"error": str(exc)}, status=503)
+    return JsonResponse({"description": shortened})
 
 
 @staff_member_required

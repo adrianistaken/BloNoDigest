@@ -77,7 +77,10 @@ DATABASES = {
     )
 }
 
-AUTH_PASSWORD_VALIDATORS = [
+# Keep local development frictionless while retaining normal password safety in
+# production. With DEBUG=true, short/common passwords are accepted for the local
+# admin account; deployed environments still use Django's full validator set.
+AUTH_PASSWORD_VALIDATORS = [] if DEBUG else [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
@@ -146,6 +149,34 @@ EMAIL_POSTAL_ADDRESS = os.environ.get("EMAIL_POSTAL_ADDRESS", "")
 DEFAULT_REGION_SLUG = os.environ.get("DEFAULT_REGION_SLUG", "bloomington-normal")
 TICKETMASTER_API_KEY = os.environ.get("TICKETMASTER_API_KEY", "")
 SITE_BASE_URL = os.environ.get("SITE_BASE_URL", "http://localhost:8000")
+
+# AI-assisted event editing. The key stays on the server; the browser only calls
+# the staff-protected dashboard endpoint. Override the instructions with the
+# exact custom-GPT prompt without requiring a deploy-time code change.
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_EVENT_SHORTEN_MODEL = os.environ.get("OPENAI_EVENT_SHORTEN_MODEL", "gpt-5-mini")
+_openai_prompt_setting = os.environ.get(
+    "OPENAI_EVENT_SHORTEN_INSTRUCTIONS_FILE",
+    "config/prompts/event_description_shortener.md",
+)
+OPENAI_EVENT_SHORTEN_INSTRUCTIONS_FILE = Path(_openai_prompt_setting)
+if not OPENAI_EVENT_SHORTEN_INSTRUCTIONS_FILE.is_absolute():
+    OPENAI_EVENT_SHORTEN_INSTRUCTIONS_FILE = BASE_DIR / OPENAI_EVENT_SHORTEN_INSTRUCTIONS_FILE
+
+OPENAI_EVENT_SHORTEN_INSTRUCTIONS = os.environ.get(
+    "OPENAI_EVENT_SHORTEN_INSTRUCTIONS", ""
+).strip()
+if not OPENAI_EVENT_SHORTEN_INSTRUCTIONS:
+    try:
+        OPENAI_EVENT_SHORTEN_INSTRUCTIONS = (
+            OPENAI_EVENT_SHORTEN_INSTRUCTIONS_FILE.read_text(encoding="utf-8").strip()
+        )
+    except OSError:
+        OPENAI_EVENT_SHORTEN_INSTRUCTIONS = (
+            "Rewrite the supplied event description as one or two factual, conversational "
+            "newsletter sentences. Return only the finished blurb."
+        )
+OPENAI_TIMEOUT_SECONDS = int(os.environ.get("OPENAI_TIMEOUT_SECONDS", "30"))
 
 # Outbound fetches from connectors (spec §27: timeouts, limited redirects).
 INGEST_USER_AGENT = os.environ.get(

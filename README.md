@@ -44,6 +44,14 @@ Then in the dashboard (target: under 60–90 min/week):
 2. **Digests** → open the draft → reorder, move sections, edit blurbs, remove events.
 3. **Send test** to yourself, check it, then **Send** to all active subscribers.
 
+### AI description shortening
+
+Set `OPENAI_API_KEY` in the server environment to enable **Shorten with AI** on event descriptions
+and digest blurbs. Generated copy stays editable and is not saved until you choose **Save changes**.
+Edit `config/prompts/event_description_shortener.md` to change the BloNo Digest writing instructions.
+`OPENAI_EVENT_SHORTEN_INSTRUCTIONS_FILE` can point to another file, while a direct
+`OPENAI_EVENT_SHORTEN_INSTRUCTIONS` value overrides the file. The API key is only read server-side.
+
 ## Sources
 
 `manage.py seed_region` registers ~10 starter sources. Two are verified working and enabled:
@@ -77,6 +85,13 @@ One web service + managed Postgres + two cron jobs:
 
 31 tests cover normalization, categorization, scoring, dedup/merge behavior, connector extraction
 (JSON-LD/@graph, HTML selectors, CivicPlus RSS), signup/unsubscribe, digest generation, and sending.
+
+## Next improvements
+
+- [ ] Add dependable event sources for nearby McLean County communities, including Towanda,
+  Hudson, Carlock, Downs, and Heyworth. Pair this with distance validation or a local-town
+  allowlist so far-away results such as Chicago are flagged instead of being treated as
+  “Worth the Short Drive.”
 
 ## Explicitly out of scope (V1)
 
