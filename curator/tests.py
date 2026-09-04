@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth.models import User
@@ -16,6 +16,7 @@ from .ingest.connectors.html_config import HTMLConfigConnector
 from .ingest.connectors.jsonld import extract_events_from_html
 from .ingest.connectors.rss import parse_civicplus_description
 from .ingest.dedupe import title_similarity, upsert_or_dedupe_event
+from .ingest.fetch import fetch_url
 from .ingest.normalize import (
     is_valid_event,
     normalize_datetime,
@@ -26,7 +27,7 @@ from .ingest.normalize import (
     strip_html,
 )
 from .ingest.score import score_event
-from .models import DigestIssue, EmailSend, Event, EventSource, Region, Subscriber
+from .models import DigestIssue, EmailSend, Event, EventSource, ImportRun, Region, Subscriber
 
 CT = ZoneInfo("America/Chicago")
 
@@ -177,6 +178,8 @@ class DedupeTests(TestCase):
 
     def test_same_source_reimport_updates(self):
         action1, event1 = upsert_or_dedupe_event(self._normalized(self.source_a), self.source_a, RawEvent())
+        event1.editorial_description = "Local vendors, minus the sales pitch."
+        event1.save(update_fields=["editorial_description"])
         action2, event2 = upsert_or_dedupe_event(
             self._normalized(self.source_a, description="Local vendors, produce, and food trucks."),
             self.source_a,
@@ -186,6 +189,8 @@ class DedupeTests(TestCase):
         self.assertEqual(action2, "updated")
         self.assertEqual(event1.pk, event2.pk)
         self.assertEqual(Event.objects.count(), 1)
+        event2.refresh_from_db()
+        self.assertEqual(event2.editorial_description, "Local vendors, minus the sales pitch.")
 
     def test_high_confidence_merges_with_source_link(self):
         _, canonical = upsert_or_dedupe_event(self._normalized(self.source_a), self.source_a, RawEvent())
@@ -217,6 +222,23 @@ class DedupeTests(TestCase):
         self.assertEqual(action, "flagged")
         self.assertEqual(flagged.duplicate_of_id, canonical.pk)
         self.assertEqual(Event.objects.count(), 2)
+
+
+class FetchTests(TestCase):
+    @patch("curator.ingest.fetch.validate_url")
+    @patch("curator.ingest.fetch.time.sleep")
+    @patch("curator.ingest.fetch.requests.Session")
+    def test_retries_temporary_rate_limit(self, session_class, sleep, validate):
+        blocked = Mock(status_code=429, headers={})
+        success = Mock(status_code=200, headers={})
+        session_class.return_value.get.side_effect = [blocked, success]
+
+        response = fetch_url("https://example.com/events")
+
+        self.assertIs(response, success)
+        self.assertEqual(session_class.return_value.get.call_count, 2)
+        sleep.assert_called_once_with(1.5)
+        success.raise_for_status.assert_called_once()
 
 
 class ScoreTests(TestCase):
@@ -516,21 +538,18 @@ class DigestTests(TestCase):
         next_week = issue.digest_events.get(event__canonical_title="Next week concert")
         self.assertEqual(next_week.section, "next_week")
 
-    def test_auto_blurb_is_concise_but_custom_runs_verbatim(self):
-        from .models import DigestEvent
-
+    def test_source_and_custom_blurbs_run_verbatim(self):
         long_description = "word " * 100
         event = self._event("Wordy Event", day_offset=1, description=long_description.strip())
         issue = generate_digest_issue("bloomington-normal")
         de = issue.digest_events.get(event=event)
-        self.assertLessEqual(len(de.blurb), DigestEvent.BLURB_MAX_CHARS + 1)
-        self.assertTrue(de.blurb.endswith("…"))
+        self.assertEqual(de.blurb, long_description.strip())
+        html, _ = render_digest(issue, "#")
+        self.assertIn(long_description.strip(), html)
         de.custom_blurb = "x" * 300
-        self.assertEqual(len(de.blurb), 300)  # admin's own words never truncated
+        self.assertEqual(len(de.blurb), 300)
 
-    def test_blurb_density_and_sentence_cuts(self):
-        from .models import DigestEvent
-
+    def test_descriptions_are_full_in_every_section(self):
         sentenced = self._event(
             "Sentence Event",
             day_offset=1,
@@ -547,18 +566,14 @@ class DigestTests(TestCase):
         issue = generate_digest_issue("bloomington-normal")
 
         de = issue.digest_events.get(event=sentenced)
-        # auto blurb ends at a sentence boundary — complete sentences, no "…"
         self.assertEqual(de.blurb_source, "auto")
-        self.assertTrue(de.blurb.endswith("the first."))
-        self.assertNotIn("…", de.blurb)
-        self.assertLessEqual(len(de.blurb), DigestEvent.BLURB_MAX_CHARS)
+        self.assertEqual(de.blurb, sentenced.description)
 
         de_gig = issue.digest_events.get(event=gig)
         de_gig.section = "music_nightlife"
         de_gig.save(update_fields=["section"])
-        # one-liner section: scraped copy hidden, curator words always shown
-        self.assertEqual(de_gig.blurb, "")
-        self.assertEqual(de_gig.blurb_source, "light")
+        self.assertEqual(de_gig.blurb, gig.description.strip())
+        self.assertEqual(de_gig.blurb_source, "auto")
         de_gig.custom_blurb = "Loud, sweaty, and worth it."
         self.assertEqual(de_gig.blurb, "Loud, sweaty, and worth it.")
         self.assertEqual(de_gig.blurb_source, "custom")
@@ -590,24 +605,38 @@ class DigestTests(TestCase):
         User.objects.create_superuser("timekeeper", "time@example.com", "pass12345")
         self.client.login(username="timekeeper", password="pass12345")
         page = self.client.get(f"/admin-dashboard/digests/{issue.pk}/")
-        self.assertContains(page, "Shorten with AI")
-        self.client.post(
-            f"/admin-dashboard/digests/{issue.pk}/",
+        self.assertContains(page, "Edit newsletter copy in Copy desk")
+        self.assertContains(page, "Day-by-day (under its calendar date)")
+        self.assertContains(page, "previewScrollY")
+        self.assertContains(page, "scrollTo(0, previewScrollY)")
+        response = self.client.post(
+            "/admin-dashboard/copy-desk/",
             {
-                "action": "set_blurb",
-                "digest_event_id": de.pk,
-                "custom_time": "Doors 6:00 PM; fights 7:00 PM",
+                "event_id": event.pk,
+                f"event-{event.pk}-editorial_time": "Doors 6:00 PM; fights 7:00 PM",
             },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
+        self.assertEqual(response.status_code, 200)
         de.refresh_from_db()
-        self.assertEqual(de.custom_time, "Doors 6:00 PM; fights 7:00 PM")
+        self.assertEqual(de.event.editorial_time, "Doors 6:00 PM; fights 7:00 PM")
         self.assertEqual(de.display_time, "Doors 6:00 PM; fights 7:00 PM")
         html, text = render_digest(issue, "#")
         self.assertIn("Doors 6:00 PM; fights 7:00 PM", html)
         self.assertIn("Doors 6:00 PM; fights 7:00 PM", text)
 
-        de.custom_time = "-"
+        de.event.editorial_time = "-"
         self.assertEqual(de.display_time, "")
+
+    def test_email_date_range_includes_weekdays(self):
+        self._event("Calendar Test", day_offset=1)
+        issue = generate_digest_issue("bloomington-normal")
+        html, _ = render_digest(issue, "#")
+        expected = (
+            f'{self.friday.strftime("%a")}, {self.friday.strftime("%b")} {self.friday.day}'
+            f' &ndash; {self.sunday.strftime("%a")}, {self.sunday.strftime("%b")} {self.sunday.day}'
+        )
+        self.assertIn(expected, html)
 
     def test_display_title_truncates_unless_custom(self):
         from .models import DigestEvent
@@ -1060,9 +1089,45 @@ class DashboardAuthTests(TestCase):
         make_region()
         User.objects.create_superuser("admin", "admin@example.com", "pass12345")
         self.client.login(username="admin", password="pass12345")
-        for url in ("/admin-dashboard/", "/admin-dashboard/sources/", "/admin-dashboard/events/",
+        for url in ("/admin-dashboard/", "/admin-dashboard/sources/", "/admin-dashboard/events/", "/admin-dashboard/copy-desk/",
                     "/admin-dashboard/digests/", "/admin-dashboard/subscribers/", "/admin-dashboard/import-runs/"):
             self.assertEqual(self.client.get(url).status_code, 200, url)
+
+    def test_sources_show_attempt_trigger_and_recovery(self):
+        region = make_region()
+        source = make_source(region)
+        ImportRun.objects.create(source=source, status="failed", trigger="scheduled")
+        ImportRun.objects.create(source=source, status="success", trigger="manual")
+        source.last_error_at = timezone.now() - timedelta(minutes=2)
+        source.last_success_at = timezone.now()
+        source.save(update_fields=["last_error_at", "last_success_at"])
+        User.objects.create_superuser("source-admin", "source@example.com", "pass12345")
+        self.client.login(username="source-admin", password="pass12345")
+
+        response = self.client.get("/admin-dashboard/sources/")
+
+        self.assertContains(response, "recovered")
+        self.assertContains(response, "manual")
+
+    @patch("curator.dashboard_views.import_source")
+    def test_run_import_records_manual_trigger(self, import_source_mock):
+        region = make_region()
+        source = make_source(region)
+        import_source_mock.return_value = Mock(
+            status="success",
+            events_found_count=3,
+            events_created_count=1,
+            events_updated_count=2,
+            events_rejected_count=0,
+            error_message="",
+        )
+        User.objects.create_superuser("runner", "runner@example.com", "pass12345")
+        self.client.login(username="runner", password="pass12345")
+
+        response = self.client.post(f"/admin-dashboard/sources/{source.pk}/run/")
+
+        self.assertEqual(response.status_code, 302)
+        import_source_mock.assert_called_once_with(source, trigger=ImportRun.Trigger.MANUAL)
 
 
 class AIShorteningTests(TestCase):
@@ -1099,7 +1164,7 @@ class AIShorteningTests(TestCase):
             "Join us for an incredible full day of festivities..."
         )
 
-    def test_event_editor_renders_ai_review_control(self):
+    def test_copy_desk_renders_source_and_ai_review_control(self):
         region = make_region()
         event = Event.objects.create(
             region=region,
@@ -1111,10 +1176,39 @@ class AIShorteningTests(TestCase):
         )
         self.client.login(username="ai-editor", password="pass12345")
 
-        response = self.client.get(f"/admin-dashboard/events/{event.pk}/")
+        response = self.client.get(f"/admin-dashboard/copy-desk/?event={event.pk}")
 
-        self.assertContains(response, "Shorten with AI")
-        self.assertContains(response, "Review it, make any edits, then save changes.")
+        self.assertContains(response, "Shorten source with AI")
+        self.assertContains(response, "A much longer source description.")
+        self.assertContains(response, "Newsletter copy")
+        self.assertContains(response, f'/admin-dashboard/events/{event.pk}/')
+        self.assertContains(response, "View full event")
+        self.assertContains(response, "data-ai-scope")
+        self.assertContains(response, 'button.closest("[data-ai-scope]")')
+
+    def test_copy_desk_saves_durable_newsletter_copy(self):
+        region = make_region()
+        event = Event.objects.create(
+            region=region,
+            canonical_title="Downtown Festival",
+            description="Long source copy.",
+            starts_at=timezone.now() + timedelta(days=2),
+            source_url="https://example.com/festival",
+        )
+        self.client.login(username="ai-editor", password="pass12345")
+        response = self.client.post(
+            "/admin-dashboard/copy-desk/",
+            {
+                "event_id": event.pk,
+                f"event-{event.pk}-editorial_description": "Concise newsletter copy.",
+                f"event-{event.pk}-editorial_price": "Free",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        event.refresh_from_db()
+        self.assertEqual(event.editorial_description, "Concise newsletter copy.")
+        self.assertEqual(event.editorial_price, "Free")
 
     @override_settings(
         OPENAI_API_KEY="test-key",

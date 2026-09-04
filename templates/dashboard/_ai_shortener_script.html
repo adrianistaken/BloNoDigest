@@ -6,12 +6,16 @@
   document.addEventListener("click", async (event) => {
       const button = event.target.closest(".js-ai-shorten");
       if (!button) return;
-      const scope = button.closest("form") || document;
+      // Some editors display imported source text beside (rather than inside)
+      // the newsletter form. An explicit AI scope keeps both halves attached
+      // to the same event without accidentally reading another open editor.
+      const scope = button.closest("[data-ai-scope]") || button.closest("form") || document;
       const source = scope.querySelector(button.dataset.source);
       const target = scope.querySelector(button.dataset.target);
       const status = scope.querySelector(".js-ai-status");
       const label = button.querySelector(".js-ai-label");
       const originalLabel = label.textContent;
+      const sourceText = (source?.value ?? source?.textContent ?? "").trim();
 
       const showStatus = (message, isError = false) => {
         status.textContent = message;
@@ -25,7 +29,7 @@
         }
       };
 
-      if (!source?.value.trim() || !target) {
+      if (!sourceText || !target) {
         showStatus("Add a description before shortening it.", true);
         return;
       }
@@ -39,7 +43,7 @@
 
       try {
         const body = new FormData();
-        body.append("description", source.value);
+        body.append("description", sourceText);
         const response = await fetch(endpoint, {
           method: "POST",
           headers: {"X-CSRFToken": csrfToken},

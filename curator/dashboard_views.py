@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -17,7 +17,7 @@ from .ai import AIShorteningError, shorten_event_description
 from .automations import get_automations
 from .digests import generate_digest_issue, upcoming_weekend
 from .emails import email_layout, featured_pick, render_digest, send_digest, send_test_email
-from .forms import EventForm
+from .forms import EventCopyForm, EventForm
 from .ingest.importer import import_source
 from .models import (
     DigestEvent,
@@ -68,8 +68,22 @@ def sources(request):
     source_list = (
         region.sources.all()
         .annotate(event_count=Count("primary_events", distinct=True))
+        .prefetch_related(
+            Prefetch(
+                "import_runs",
+                queryset=ImportRun.objects.order_by("-started_at")[:3],
+                to_attr="recent_runs",
+            )
+        )
         .order_by("name")
     )
+    for source in source_list:
+        source.last_run = source.recent_runs[0] if source.recent_runs else None
+        source.recovered_after_failure = bool(
+            source.last_run
+            and source.last_run.status in (ImportRun.Status.SUCCESS, ImportRun.Status.PARTIAL_SUCCESS)
+            and any(run.status == ImportRun.Status.FAILED for run in source.recent_runs[1:])
+        )
     return render(request, "dashboard/sources.html", {"sources": source_list, "region": region})
 
 
@@ -77,7 +91,7 @@ def sources(request):
 @require_POST
 def run_source_import(request, source_id):
     source = get_object_or_404(EventSource, pk=source_id)
-    run = import_source(source)
+    run = import_source(source, trigger=ImportRun.Trigger.MANUAL)
     level = messages.SUCCESS if run.status in ("success", "partial_success") else messages.ERROR
     messages.add_message(
         request, level,
@@ -164,6 +178,73 @@ def events(request):
         "current": {"status": status, "filter": quick, "source": source_slug},
     }
     return render(request, "dashboard/events.html", context)
+
+
+@staff_member_required
+def copy_desk(request):
+    """Edit durable newsletter copy without touching refreshable source data."""
+    region = _default_region()
+
+    if request.method == "POST":
+        event = get_object_or_404(Event, pk=request.POST.get("event_id"), region=region)
+        form = EventCopyForm(request.POST, instance=event, prefix=f"event-{event.pk}")
+        if form.is_valid():
+            form.save()
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"saved": True})
+            messages.success(request, f"Newsletter copy saved: {event.canonical_title}")
+        elif request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+        return redirect(f"{request.path}?event={event.pk}#event-{event.pk}")
+
+    queryset = region.events.select_related("primary_source").all()
+    event_id = request.GET.get("event", "")
+    status = request.GET.get("status", Event.Status.APPROVED)
+    window = request.GET.get("window", "next_14")
+    query = request.GET.get("q", "").strip()
+    today = timezone.localdate()
+
+    if event_id.isdigit():
+        queryset = queryset.filter(pk=event_id)
+    else:
+        if status:
+            queryset = queryset.filter(status=status)
+        if window == "this_weekend":
+            friday, sunday = upcoming_weekend(region.timezone)
+            queryset = queryset.filter(starts_at__date__range=(friday, sunday))
+        elif window == "next_14":
+            queryset = queryset.filter(
+                starts_at__date__gte=today,
+                starts_at__date__lte=today + timedelta(days=14),
+            )
+        elif window == "upcoming":
+            queryset = queryset.filter(starts_at__date__gte=today)
+        if query:
+            queryset = queryset.filter(
+                Q(canonical_title__icontains=query)
+                | Q(venue_name__icontains=query)
+                | Q(description__icontains=query)
+            )
+
+    queryset = queryset.order_by("starts_at", "canonical_title")
+    page = Paginator(queryset, 20).get_page(request.GET.get("page"))
+    rows = [
+        {
+            "event": event,
+            "form": EventCopyForm(instance=event, prefix=f"event-{event.pk}"),
+        }
+        for event in page
+    ]
+    return render(
+        request,
+        "dashboard/copy_desk.html",
+        {
+            "page": page,
+            "rows": rows,
+            "statuses": Event.Status.choices,
+            "current": {"event": event_id, "status": status, "window": window, "q": query},
+        },
+    )
 
 
 @staff_member_required

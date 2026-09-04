@@ -4,7 +4,10 @@
 
 {% block content %}
 <div class="flex items-center justify-between">
-  <h1 class="text-2xl font-bold">Event sources</h1>
+  <div>
+    <h1 class="text-2xl font-bold">Event sources</h1>
+    <p class="mt-1 text-sm text-slate-500">Imports retry temporary blocking up to three times. <a href="{% url 'dashboard:import_runs' %}" class="text-blue-700 hover:underline">View the full run history →</a></p>
+  </div>
   <a href="/django-admin/curator/eventsource/add/" class="bg-slate-900 text-white text-sm px-4 py-2 rounded hover:bg-slate-700">+ Add source</a>
 </div>
 
@@ -16,7 +19,7 @@
         <th class="px-4 py-2">Type</th>
         <th class="px-4 py-2">Enabled</th>
         <th class="px-4 py-2">Events</th>
-        <th class="px-4 py-2">Last success</th>
+        <th class="px-4 py-2">Last attempt</th>
         <th class="px-4 py-2">Status</th>
         <th class="px-4 py-2"></th>
       </tr>
@@ -31,10 +34,22 @@
         <td class="px-4 py-2"><code class="bg-slate-100 px-1 rounded">{{ source.source_type }}</code></td>
         <td class="px-4 py-2">{% if source.enabled %}✅{% else %}—{% endif %}</td>
         <td class="px-4 py-2">{{ source.event_count }}</td>
-        <td class="px-4 py-2 text-slate-500">{{ source.last_success_at|default:"never" }}</td>
+        <td class="px-4 py-2 text-slate-500">
+          {% if source.last_run %}
+            <span class="block">{{ source.last_run.started_at }}</span>
+            <span class="text-xs">{{ source.last_run.get_trigger_display|lower }}</span>
+          {% else %}never{% endif %}
+        </td>
         <td class="px-4 py-2">
           {% if source.is_broken %}
-            <span class="text-red-700 font-bold" title="{{ source.last_error_message }}">broken</span>
+            <span class="text-red-700 font-bold">needs attention</span>
+            <details class="mt-1 max-w-md">
+              <summary class="cursor-pointer text-xs text-red-700">Show last error</summary>
+              <p class="mt-1 break-words rounded bg-red-50 p-2 text-xs text-red-800">{{ source.last_error_message }}</p>
+            </details>
+          {% elif source.recovered_after_failure %}
+            <span class="text-green-700 font-semibold">recovered</span>
+            <span class="block text-xs text-slate-400">latest attempt succeeded</span>
           {% elif source.last_success_at %}
             <span class="text-green-700">ok</span>
           {% else %}

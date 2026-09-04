@@ -1,0 +1,172 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Copy desk — Digest Admin{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-bold">Copy desk</h1>
+    <p class="mt-1 max-w-2xl text-sm text-slate-500">Edit an event once here. Your newsletter copy survives later imports and appears in every new digest draft.</p>
+  </div>
+  <a href="{% url 'dashboard:digests' %}" class="text-sm text-blue-700 underline">Go to digest assembly</a>
+</div>
+
+{% if current.event %}
+<div class="mt-4 flex items-center justify-between rounded border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+  <span>Showing the event you opened from a digest.</span>
+  <a href="{% url 'dashboard:copy_desk' %}" class="font-semibold underline">Show the full queue</a>
+</div>
+{% else %}
+<form method="get" class="mt-4 flex flex-wrap items-end gap-3 rounded bg-white p-4 text-sm shadow">
+  <label>
+    <span class="block text-slate-500">Date range</span>
+    <select name="window" class="mt-1 rounded border px-2 py-1.5">
+      <option value="next_14" {% if current.window == 'next_14' %}selected{% endif %}>next 14 days</option>
+      <option value="this_weekend" {% if current.window == 'this_weekend' %}selected{% endif %}>this weekend</option>
+      <option value="upcoming" {% if current.window == 'upcoming' %}selected{% endif %}>all upcoming</option>
+      <option value="all" {% if current.window == 'all' %}selected{% endif %}>all dates</option>
+    </select>
+  </label>
+  <label>
+    <span class="block text-slate-500">Status</span>
+    <select name="status" class="mt-1 rounded border px-2 py-1.5">
+      <option value="">all statuses</option>
+      {% for value, label in statuses %}<option value="{{ value }}" {% if current.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="min-w-52 flex-1">
+    <span class="block text-slate-500">Search</span>
+    <input name="q" value="{{ current.q }}" placeholder="title, venue, or description" class="mt-1 w-full rounded border px-2 py-1.5">
+  </label>
+  <button class="rounded bg-slate-900 px-4 py-2 text-white hover:bg-slate-700">Filter</button>
+  <a href="{% url 'dashboard:copy_desk' %}" class="pb-2 text-slate-500 underline">reset</a>
+</form>
+{% endif %}
+
+<div class="mt-4 flex items-center justify-between text-sm text-slate-500">
+  <p><b class="text-slate-700">{{ page.paginator.count }}</b> event{{ page.paginator.count|pluralize }}</p>
+  <button type="button" id="toggle-copy-editors" class="underline hover:text-slate-900">Expand all</button>
+</div>
+
+<div class="mt-2 space-y-3">
+  {% for row in rows %}
+  {% with event=row.event form=row.form %}
+  <details id="event-{{ event.pk }}" data-ai-scope class="copy-editor overflow-hidden rounded bg-white shadow" {% if current.event %}open{% endif %}>
+    <summary class="flex cursor-pointer list-none items-start gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+      <span class="copy-chevron mt-0.5 inline-block text-slate-400 transition-transform">▸</span>
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-semibold text-slate-900">{{ event.editorial_title|default:event.canonical_title|truncatechars:85 }}</span>
+          {% if event.has_editorial_copy %}<span class="rounded bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-800">edited</span>{% else %}<span class="rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">source copy</span>{% endif %}
+          {% if event.status == 'approved' %}<span class="text-xs font-semibold text-green-700">approved</span>{% elif event.status == 'needs_review' %}<span class="text-xs font-semibold text-amber-700">needs review</span>{% else %}<span class="text-xs text-slate-500">{{ event.status }}</span>{% endif %}
+        </div>
+        <p class="mt-0.5 text-xs text-slate-500">{{ event.starts_at|date:"D, M j" }}{% if event.time_is_known %} at {{ event.starts_at|date:"g:i A" }}{% else %}, time TBD{% endif %} · {{ event.location_display }} · {{ event.primary_source.name|default:"manual" }}</p>
+      </div>
+      <span class="text-xs text-slate-400">compare and edit</span>
+    </summary>
+
+    <div class="grid border-t border-slate-200 lg:grid-cols-2">
+      <section class="bg-slate-50 p-4 lg:border-r lg:border-slate-200">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold text-slate-700">Imported source</h2>
+          <div class="flex items-center gap-3 text-xs">
+            <a href="{% url 'dashboard:event_detail' event.pk %}" class="font-semibold text-indigo-700 underline">View full event</a>
+            {% if event.source_url %}<a href="{{ event.source_url }}" target="_blank" rel="noopener" class="text-blue-700 underline">Open source ↗</a>{% endif %}
+          </div>
+        </div>
+        <dl class="mt-3 space-y-3 text-sm">
+          <div><dt class="text-xs font-semibold text-slate-500">Title</dt><dd class="mt-0.5">{{ event.canonical_title }}</dd></div>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div><dt class="text-xs font-semibold text-slate-500">Time</dt><dd class="mt-0.5">{% if event.time_is_known %}{{ event.starts_at|date:"g:i A" }}{% else %}TBD{% endif %}</dd></div>
+            <div><dt class="text-xs font-semibold text-slate-500">Location</dt><dd class="mt-0.5">{{ event.location_display }}</dd></div>
+            <div><dt class="text-xs font-semibold text-slate-500">Price</dt><dd class="mt-0.5">{{ event.price_text|default:"not listed" }}</dd></div>
+          </div>
+          <div>
+            <dt class="text-xs font-semibold text-slate-500">Description</dt>
+            <dd class="js-ai-source mt-1 whitespace-pre-line leading-6 text-slate-700">{{ event.description|default:"No source description." }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <form method="post" class="js-copy-form border-l-4 border-indigo-400 p-4">
+        {% csrf_token %}
+        <input type="hidden" name="event_id" value="{{ event.pk }}">
+        <h2 class="font-semibold text-indigo-950">Newsletter copy</h2>
+        <p class="mt-0.5 text-xs text-slate-500">Blank fields fall back to the imported source. Enter only <b>-</b> for time or price to hide it.</p>
+        <div class="mt-3 space-y-3 text-sm [&_input]:w-full [&_input]:rounded [&_input]:border [&_input]:px-2 [&_input]:py-1.5 [&_textarea]:w-full [&_textarea]:rounded [&_textarea]:border [&_textarea]:px-2 [&_textarea]:py-2">
+          <label class="block"><span class="text-xs font-semibold text-slate-600">{{ form.editorial_title.label }}</span>{{ form.editorial_title }}</label>
+          <div class="grid gap-3 sm:grid-cols-3">
+            <label><span class="text-xs font-semibold text-slate-600">{{ form.editorial_time.label }}</span>{{ form.editorial_time }}</label>
+            <label><span class="text-xs font-semibold text-slate-600">{{ form.editorial_location.label }}</span>{{ form.editorial_location }}</label>
+            <label><span class="text-xs font-semibold text-slate-600">{{ form.editorial_price.label }}</span>{{ form.editorial_price }}</label>
+          </div>
+          <label class="block"><span class="text-xs font-semibold text-slate-600">{{ form.editorial_description.label }}</span>{{ form.editorial_description }}</label>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" class="js-ai-shorten inline-flex items-center gap-1.5 rounded border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-60" data-target="#{{ form.editorial_description.id_for_label }}" data-source=".js-ai-source">
+            <span aria-hidden="true">✦</span><span class="js-ai-label">Shorten source with AI</span>
+          </button>
+          <button class="rounded bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">Save newsletter copy</button>
+          <span class="js-copy-status text-xs text-slate-500" role="status" aria-live="polite"></span>
+        </div>
+        <div class="js-ai-status mt-2 hidden rounded border px-3 py-2 text-xs" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+  </details>
+  {% endwith %}
+  {% empty %}
+  <div class="rounded bg-white p-8 text-center text-slate-500 shadow">No events match these filters.</div>
+  {% endfor %}
+</div>
+
+{% if page.has_other_pages %}
+<div class="mt-5 flex gap-3 text-sm">
+  {% if page.has_previous %}<a class="text-blue-700 underline" href="?window={{ current.window }}&status={{ current.status }}&q={{ current.q|urlencode }}&page={{ page.previous_page_number }}">← previous</a>{% endif %}
+  <span>page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="text-blue-700 underline" href="?window={{ current.window }}&status={{ current.status }}&q={{ current.q|urlencode }}&page={{ page.next_page_number }}">next →</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% include "dashboard/_ai_shortener_script.html" %}
+<style>.copy-editor[open] > summary .copy-chevron { transform: rotate(90deg); }</style>
+<script>
+(() => {
+  const toggle = document.getElementById('toggle-copy-editors');
+  toggle?.addEventListener('click', () => {
+    const editors = [...document.querySelectorAll('.copy-editor')];
+    const shouldOpen = editors.some(editor => !editor.open);
+    editors.forEach(editor => editor.open = shouldOpen);
+    toggle.textContent = shouldOpen ? 'Collapse all' : 'Expand all';
+  });
+
+  document.addEventListener('submit', async event => {
+    const form = event.target.closest('.js-copy-form');
+    if (!form) return;
+    event.preventDefault();
+    const status = form.querySelector('.js-copy-status');
+    const button = event.submitter;
+    status.textContent = 'Saving…';
+    if (button) button.disabled = true;
+    try {
+      const response = await fetch(window.location.href, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        body: new FormData(form),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error('Check the highlighted fields and try again.');
+      status.textContent = 'Saved. Future imports and drafts will keep this copy.';
+      status.className = 'js-copy-status text-xs font-semibold text-green-700';
+      form.closest('.copy-editor').querySelector('summary').classList.add('ring-1', 'ring-inset', 'ring-green-200');
+    } catch (error) {
+      status.textContent = error.message;
+      status.className = 'js-copy-status text-xs font-semibold text-red-700';
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

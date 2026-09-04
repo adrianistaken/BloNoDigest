@@ -1,4 +1,3 @@
-import re
 import secrets
 
 from django.db import models
@@ -119,7 +118,12 @@ class ImportRun(models.Model):
         PARTIAL_SUCCESS = "partial_success"
         FAILED = "failed"
 
+    class Trigger(models.TextChoices):
+        SCHEDULED = "scheduled", "Scheduled"
+        MANUAL = "manual", "Manual"
+
     source = models.ForeignKey(EventSource, on_delete=models.CASCADE, related_name="import_runs")
+    trigger = models.CharField(max_length=20, choices=Trigger.choices, default=Trigger.SCHEDULED)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     started_at = models.DateTimeField(default=timezone.now)
     finished_at = models.DateTimeField(null=True, blank=True)
@@ -210,6 +214,13 @@ class Event(TimestampedModel):
         "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="duplicates"
     )
     editorial_notes = models.TextField(blank=True)
+    # Durable newsletter copy. Imported source fields above may refresh on
+    # every crawl; these curator-owned overrides never do.
+    editorial_title = models.CharField(max_length=300, blank=True)
+    editorial_time = models.CharField(max_length=50, blank=True)
+    editorial_location = models.CharField(max_length=300, blank=True)
+    editorial_price = models.CharField(max_length=100, blank=True)
+    editorial_description = models.TextField(blank=True)
     approved_for_digest = models.BooleanField(default=False)
     last_seen_at = models.DateTimeField(default=tz_now)
 
@@ -239,6 +250,18 @@ class Event(TimestampedModel):
     def location_display(self):
         parts = [p for p in (self.venue_name, self.city) if p]
         return ", ".join(parts) or self.address_line or "Location TBD"
+
+    @property
+    def has_editorial_copy(self):
+        return any(
+            (
+                self.editorial_title,
+                self.editorial_time,
+                self.editorial_location,
+                self.editorial_price,
+                self.editorial_description,
+            )
+        )
 
 
 class EventSourceLink(models.Model):
@@ -270,16 +293,6 @@ DIGEST_SECTIONS = [
     ("worth_the_drive", "Worth the Short Drive"),
     ("next_week", "Looking Ahead"),
 ]
-
-# One-liner sections: the event name + time + venue carries these (a show
-# listing doesn't need scraped promo copy). Auto-blurbs are suppressed here;
-# curator-written blurbs still show.
-LIGHT_SECTIONS = {"music_nightlife", "food_markets"}
-
-# Initials and common abbreviations whose trailing period must not be read
-# as a sentence boundary when trimming auto-blurbs
-_NOT_SENTENCE_END = re.compile(r"\b(?:[A-Z]|Mr|Mrs|Ms|Dr|St|Ave|Rd|vs|etc|Jr|Sr)\.$")
-
 
 class DigestIssue(TimestampedModel):
     class Status(models.TextChoices):
@@ -389,7 +402,7 @@ class DigestEvent(models.Model):
     featured = models.BooleanField(default=False)
     # Placement: in a curator-created section, or (when null) in the
     # day-by-day spine. The legacy `section` field remains as import-time
-    # category metadata (it still drives one-liner blurb density).
+    # category metadata.
     custom_section = models.ForeignKey(
         DigestSection, on_delete=models.SET_NULL, null=True, blank=True, related_name="digest_events"
     )
@@ -401,8 +414,6 @@ class DigestEvent(models.Model):
             models.UniqueConstraint(fields=["digest_issue", "event"], name="unique_event_per_digest"),
         ]
 
-    # Sentence-boundary cuts need room for one full sentence
-    BLURB_MAX_CHARS = 140
     TITLE_MAX_CHARS = 75
 
     @property
@@ -411,7 +422,7 @@ class DigestEvent(models.Model):
         get a word-boundary cut so email cards stay scannable."""
         if self.custom_title:
             return self.custom_title
-        title = (self.event.canonical_title or "").strip()
+        title = (self.event.editorial_title or self.event.canonical_title or "").strip()
         if len(title) <= self.TITLE_MAX_CHARS:
             return title
         cut = title[: self.TITLE_MAX_CHARS]
@@ -423,7 +434,7 @@ class DigestEvent(models.Model):
     def display_time(self):
         """Curator-entered time wins; a single "-" hides the time entirely;
         blank falls back to the imported time when it is known."""
-        custom = self.custom_time.strip()
+        custom = (self.custom_time or self.event.editorial_time).strip()
         if custom == "-":
             return ""
         if custom:
@@ -441,6 +452,8 @@ class DigestEvent(models.Model):
         if self.custom_location:
             return self.custom_location
         event = self.event
+        if event.editorial_location:
+            return event.editorial_location
         venue = (event.venue_name or "").strip()
         city = (event.city or "").strip()
         if venue:
@@ -454,57 +467,26 @@ class DigestEvent(models.Model):
         """Curator-entered price wins (sources sometimes stuff a paragraph in
         their price field); a single "-" hides the price entirely; blank
         falls back to the source's price text."""
-        custom = self.custom_price.strip()
+        custom = (self.custom_price or self.event.editorial_price).strip()
         if custom == "-":
             return ""
         return custom or (self.event.price_text or "").strip()
 
     @property
     def blurb(self):
-        """Curator-written blurbs run verbatim anywhere. Auto-blurbs are
-        suppressed in one-liner sections (the title carries those events),
-        and elsewhere cut at a sentence boundary — a complete sentence reads
-        as written, a mid-word ellipsis reads as scraped."""
+        """Descriptions always run in full; editorial copy wins over source copy."""
         if self.custom_blurb:
             return self.custom_blurb
-        if self.section in LIGHT_SECTIONS:
-            return ""
-        text = (self.event.description or "").strip()
-        if len(text) <= self.BLURB_MAX_CHARS:
-            return text
-        # A period after an initial or abbreviation isn't a sentence end
-        # ("Barbara J. Barrett", "Dr. Smith") — glue those pieces back.
-        parts = re.split(r"(?<=[.!?])\s+", text)
-        sentences = []
-        for part in parts:
-            if sentences and _NOT_SENTENCE_END.search(sentences[-1]):
-                sentences[-1] += " " + part
-            else:
-                sentences.append(part)
-        kept = ""
-        for sentence in sentences:
-            candidate = f"{kept} {sentence}".strip()
-            if len(candidate) > self.BLURB_MAX_CHARS:
-                break
-            kept = candidate
-        if kept:
-            return kept
-        # first sentence alone is too long: word-boundary fallback
-        cut = text[: self.BLURB_MAX_CHARS]
-        if " " in cut:
-            cut = cut[: cut.rfind(" ")]
-        return cut.rstrip(".,;:") + "…"
+        if self.event.editorial_description:
+            return self.event.editorial_description
+        return (self.event.description or "").strip()
 
     @property
     def blurb_source(self):
-        """'custom' (curator-written), 'light' (one-liner section, auto text
-        hidden), or 'auto' (truncated source description) — the builder shows
-        this so Thursday review can target what still needs a human line."""
-        if self.custom_blurb:
+        """Identify whether the digest is using reviewed or imported copy."""
+        if self.custom_blurb or self.event.editorial_description:
             return "custom"
-        if self.section in LIGHT_SECTIONS:
-            return "light"
-        return "auto"
+        return "auto" if self.event.description else "empty"
 
 
 class EmailSend(models.Model):

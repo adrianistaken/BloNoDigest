@@ -37,7 +37,7 @@
       <!-- painted underline -->
       <div style="width:130px; height:4px; background:#C96F4A; border-radius:99px 40px 99px 50px; margin:9px auto 0; opacity:.75;"></div>
       <p style="display:inline-block; background:#EEE5D5; border-radius:999px; padding:5px 16px; font-size:12px; font-weight:bold; letter-spacing:1.5px; text-transform:uppercase; color:#294C3A; margin:14px 0 0;">
-        {{ issue.target_start_date|date:"M j" }} &ndash; {{ issue.target_end_date|date:"M j" }}
+        {{ issue.target_start_date|date:"D, M j" }} &ndash; {{ issue.target_end_date|date:"D, M j" }}
       </p>
       {% if issue.intro_text %}
       <p style="font-size:15px; line-height:1.55; color:#2E302C; margin:14px auto 0; max-width:480px;">{{ issue.intro_text }}</p>

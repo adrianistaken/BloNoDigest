@@ -14,6 +14,7 @@
         <th class="px-4 py-2 cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2"
             title="How the fetch went. success = clean run. partial_success = source reached, but some individual events errored. failed = couldn't fetch the source at all — see Error.">Status</th>
         <th class="px-4 py-2">Started</th>
+        <th class="px-4 py-2" title="Scheduled = nightly automation. Manual = someone clicked Run import.">Trigger</th>
         <th class="px-4 py-2 cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2"
             title="Total events the source listed during this run — the raw haul before any judgment.">Found</th>
         <th class="px-4 py-2 cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2"
@@ -36,6 +37,7 @@
           {% else %}<span class="text-amber-600">{{ run.status }}</span>{% endif %}
         </td>
         <td class="px-4 py-2 text-slate-500">{{ run.started_at }}</td>
+        <td class="px-4 py-2"><span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs">{{ run.get_trigger_display }}</span></td>
         <td class="px-4 py-2">{{ run.events_found_count }}</td>
         <td class="px-4 py-2">{{ run.events_created_count }}</td>
         <td class="px-4 py-2">{{ run.events_updated_count }}</td>
@@ -43,7 +45,7 @@
         <td class="px-4 py-2 text-red-700 max-w-xs truncate" title="{{ run.error_message }}">{{ run.error_message|truncatechars:60 }}</td>
       </tr>
       {% empty %}
-      <tr><td colspan="8" class="px-4 py-6 text-center text-slate-500">No import runs yet.</td></tr>
+      <tr><td colspan="9" class="px-4 py-6 text-center text-slate-500">No import runs yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>

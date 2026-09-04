@@ -11,7 +11,7 @@
 <div id="workflow-guide" class="bg-white rounded shadow border-l-4 border-slate-900 p-5 mt-4">
   <p class="font-bold text-lg">Your weekly ritual — do this before each Thursday</p>
   <p class="text-sm text-slate-500 mt-1">The robot collects events automatically; your job is to review the good ones and hit send. Roughly 30–60 minutes.</p>
-  <ol class="mt-4 grid gap-3 sm:grid-cols-5">
+  <ol class="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
     <li class="bg-slate-50 rounded p-3">
       <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-sm">1</span>
       <p class="font-bold mt-2 text-sm">Collect</p>
@@ -24,16 +24,21 @@
     </li>
     <li class="bg-slate-50 rounded p-3">
       <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-sm">3</span>
-      <p class="font-bold mt-2 text-sm">Generate</p>
-      <p class="text-xs text-slate-500 mt-1">On <a class="text-blue-700 underline" href="{% url 'dashboard:digests' %}">Digests</a>, click “Generate draft for upcoming weekend.”</p>
+      <p class="font-bold mt-2 text-sm">Polish copy</p>
+      <p class="text-xs text-slate-500 mt-1">On the <a class="text-blue-700 underline" href="{% url 'dashboard:copy_desk' %}">Copy desk</a>, edit event wording once. It carries into every future draft.</p>
     </li>
     <li class="bg-slate-50 rounded p-3">
       <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-sm">4</span>
-      <p class="font-bold mt-2 text-sm">Polish</p>
-      <p class="text-xs text-slate-500 mt-1">In the draft, reorder, move sections, edit blurbs, or remove events. Check the live preview.</p>
+      <p class="font-bold mt-2 text-sm">Generate</p>
+      <p class="text-xs text-slate-500 mt-1">On <a class="text-blue-700 underline" href="{% url 'dashboard:digests' %}">Digests</a>, generate the latest approved-event draft.</p>
     </li>
     <li class="bg-slate-50 rounded p-3">
-      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-700 text-white font-bold text-sm">5</span>
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-sm">5</span>
+      <p class="font-bold mt-2 text-sm">Assemble</p>
+      <p class="text-xs text-slate-500 mt-1">In the draft, order events, create sections, feature a pick, and remove anything that does not fit.</p>
+    </li>
+    <li class="bg-slate-50 rounded p-3">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-700 text-white font-bold text-sm">6</span>
       <p class="font-bold mt-2 text-sm">Send</p>
       <p class="text-xs text-slate-500 mt-1">Click “Send test” to email yourself first, then “Send to subscribers.”</p>
     </li>
@@ -67,6 +72,7 @@
       <li>{{ source.name }} — {{ source.last_error_message|truncatechars:120 }}</li>
     {% endfor %}
   </ul>
+  <p class="mt-2 text-sm text-red-800"><a href="{% url 'dashboard:sources' %}" class="font-semibold underline">Open Sources</a> to retry one now, or <a href="{% url 'dashboard:import_runs' %}" class="font-semibold underline">view import history</a> to compare scheduled and manual attempts.</p>
 </div>
 {% endif %}
 

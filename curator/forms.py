@@ -31,3 +31,27 @@ class EventForm(forms.ModelForm):
             "starts_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
             "ends_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
         }
+
+
+class EventCopyForm(forms.ModelForm):
+    """Curator-owned newsletter copy that survives future source imports."""
+
+    class Meta:
+        model = Event
+        fields = [
+            "editorial_title",
+            "editorial_time",
+            "editorial_location",
+            "editorial_price",
+            "editorial_description",
+        ]
+        labels = {
+            "editorial_title": "Newsletter title",
+            "editorial_time": "Display time",
+            "editorial_location": "Display location",
+            "editorial_price": "Display price",
+            "editorial_description": "Newsletter description",
+        }
+        widgets = {
+            "editorial_description": forms.Textarea(attrs={"rows": 5}),
+        }

@@ -24,10 +24,17 @@ logger = logging.getLogger("curator.ingest")
 ALREADY_ENDED_GRACE = timedelta(days=1)
 
 
-def import_source(source: EventSource) -> ImportRun:
-    run = ImportRun.objects.create(source=source, status=ImportRun.Status.RUNNING)
+def import_source(
+    source: EventSource,
+    trigger: str = ImportRun.Trigger.SCHEDULED,
+) -> ImportRun:
+    run = ImportRun.objects.create(
+        source=source, status=ImportRun.Status.RUNNING, trigger=trigger
+    )
     region = source.region
-    log_lines = [f"fetch started: {source.name} ({source.source_type})"]
+    log_lines = [
+        f"fetch started: {source.name} ({source.source_type}); trigger={trigger}"
+    ]
     logger.info("Import started for source=%s", source.slug)
     now = timezone.now()
     source.last_fetched_at = now

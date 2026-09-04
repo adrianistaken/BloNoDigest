@@ -199,6 +199,9 @@
 async function postAndRefresh(data) {
   const openEditors = [...document.querySelectorAll('#builder-panel details[data-de][open]')].map(d => d.dataset.de);
   const closedSections = [...document.querySelectorAll('#builder-panel details[data-section]:not([open])')].map(d => d.dataset.section);
+  const frame = document.getElementById('preview-frame');
+  let previewScrollY = 0;
+  try { previewScrollY = frame?.contentWindow?.scrollY || 0; } catch (err) { /* same-origin preview expected */ }
   const resp = await fetch(window.location.href, { method: 'POST', body: data });
   if (!resp.ok) throw new Error(resp.status);
   const doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
@@ -215,8 +218,12 @@ async function postAndRefresh(data) {
       if (d) d.open = false;
     });
   }
-  const frame = document.getElementById('preview-frame');
-  if (frame) frame.src = frame.src;
+  if (frame) {
+    frame.addEventListener('load', () => {
+      try { frame.contentWindow.scrollTo(0, previewScrollY); } catch (err) { /* keep the saved builder change */ }
+    }, { once: true });
+    frame.contentWindow.location.reload();
+  }
 }
 
 document.addEventListener('submit', async (e) => {
@@ -279,8 +286,4 @@ document.addEventListener('drop', async (e) => {
   try { await postAndRefresh(data); } catch (err) { /* row snaps back untouched */ }
 });
 </script>
-{% endblock %}
-
-{% block scripts %}
-  {% include "dashboard/_ai_shortener_script.html" %}
 {% endblock %}
