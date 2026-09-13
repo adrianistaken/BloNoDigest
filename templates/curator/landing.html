@@ -285,7 +285,10 @@
     "have a group chat that never decides anything.",
   ];
   const el = document.getElementById('tagline-swap');
-  if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!el) return;
+  let i = Math.floor(Math.random() * lines.length);
+  el.textContent = lines[i];
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const wide = window.matchMedia('(min-width: 640px)');
 
   const measure = (text) => {
@@ -307,16 +310,18 @@
     el.style.width = measure(el.textContent) + 'px';
   }
 
-  let i = 0;
   setInterval(() => {
-    const next = lines[(i + 1) % lines.length];
+    // Pick from every phrase except the one currently on screen.
+    const offset = 1 + Math.floor(Math.random() * (lines.length - 1));
+    const nextIndex = (i + offset) % lines.length;
+    const next = lines[nextIndex];
     el.style.opacity = 0;
     setTimeout(() => {
       if (wide.matches) el.style.width = measure(next) + 'px';
       // fade the new line in while the width is still gliding — the pause
       // between lines reads much shorter without the swap looking abrupt
       setTimeout(() => {
-        i = (i + 1) % lines.length;
+        i = nextIndex;
         el.textContent = next;
         el.style.opacity = 1;
       }, wide.matches ? 120 : 0);
