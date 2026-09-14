@@ -1,11 +1,14 @@
 """Internal review dashboard (spec §19/§23). Staff-only, utilitarian."""
 
+import logging
 from datetime import timedelta
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -16,7 +19,7 @@ from django.views.decorators.http import require_POST
 from .ai import AIShorteningError, shorten_event_description
 from .automations import get_automations
 from .digests import generate_digest_issue, upcoming_weekend
-from .emails import email_layout, featured_pick, render_digest, send_digest, send_test_email
+from .emails import email_layout, featured_pick, render_digest, send_digest, send_test_email, send_test_welcome_email
 from .forms import EventCopyForm, EventForm
 from .ingest.importer import import_source
 from .models import (
@@ -30,6 +33,8 @@ from .models import (
     Region,
     Subscriber,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _default_region():
@@ -477,6 +482,22 @@ def digest_preview(request, issue_id):
 @staff_member_required
 def subscribers(request):
     region = _default_region()
+    if request.method == "POST":
+        to_email = (request.POST.get("test_email") or request.user.email or settings.ADMIN_EMAIL).strip()
+        try:
+            validate_email(to_email)
+        except ValidationError:
+            messages.error(request, "Enter a valid email address for the welcome test.")
+        else:
+            try:
+                if send_test_welcome_email(to_email):
+                    messages.success(request, f"Welcome test email sent to {to_email}.")
+                else:
+                    messages.error(request, "The email backend did not send the welcome test email.")
+            except Exception:
+                logger.exception("Welcome test email failed")
+                messages.error(request, "Could not send the welcome test email. Check the email configuration and try again.")
+        return redirect("dashboard:subscribers")
     queryset = region.subscribers.order_by("-subscribed_at")
     counts = {
         "active": queryset.filter(status=Subscriber.Status.ACTIVE).count(),

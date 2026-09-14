@@ -220,31 +220,46 @@ def send_digest(issue):
     return sent, failed
 
 
+def _welcome_message(to_email, unsubscribe_url):
+    """Build the same HTML and text message for signups and admin tests."""
+    # New subscribers can read the latest issue right away instead of
+    # waiting until Thursday (also covers post-send signups).
+    latest = (
+        DigestIssue.objects.filter(status=DigestIssue.Status.SENT)
+        .order_by("-target_start_date", "-sent_at")
+        .first()
+    )
+    context = {
+        "unsubscribe_url": unsubscribe_url,
+        "site_base_url": settings.SITE_BASE_URL,
+        "postal_address": _display_postal_address(),
+        "latest_issue_url": settings.SITE_BASE_URL + latest.public_path if latest else "",
+    }
+    message = EmailMultiAlternatives(
+        subject="You're in — BloNo Digest",
+        body=render_to_string("curator/emails/welcome.txt", context),
+        from_email=settings.EMAIL_FROM_ADDRESS,
+        to=[to_email],
+    )
+    message.attach_alternative(
+        render_to_string("curator/emails/welcome.html", context), "text/html"
+    )
+    return message
+
+
 def send_welcome_email(subscriber):
     """Best-effort confirmation email on signup; failures never block signup."""
     try:
-        # New subscribers can read the latest issue right away instead of
-        # waiting until Thursday (also covers post-send signups).
-        latest = (
-            DigestIssue.objects.filter(status=DigestIssue.Status.SENT)
-            .order_by("-target_start_date", "-sent_at")
-            .first()
-        )
-        context = {
-            "unsubscribe_url": f"{settings.SITE_BASE_URL}/unsubscribe/{subscriber.unsubscribe_token}/",
-            "site_base_url": settings.SITE_BASE_URL,
-            "postal_address": _display_postal_address(),
-            "latest_issue_url": settings.SITE_BASE_URL + latest.public_path if latest else "",
-        }
-        message = EmailMultiAlternatives(
-            subject="You're in — BloNo Digest",
-            body=render_to_string("curator/emails/welcome.txt", context),
-            from_email=settings.EMAIL_FROM_ADDRESS,
-            to=[subscriber.email],
-        )
-        message.attach_alternative(
-            render_to_string("curator/emails/welcome.html", context), "text/html"
-        )
-        message.send()
+        _welcome_message(
+            subscriber.email,
+            f"{settings.SITE_BASE_URL}/unsubscribe/{subscriber.unsubscribe_token}/",
+        ).send()
     except Exception as exc:
         logger.warning("Welcome email failed for %s: %s", subscriber.email, exc)
+
+
+def send_test_welcome_email(to_email):
+    """Send a welcome preview without creating or changing a subscriber."""
+    return _welcome_message(
+        to_email, f"{settings.SITE_BASE_URL}/unsubscribe/test-token/"
+    ).send(fail_silently=False)

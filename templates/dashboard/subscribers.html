@@ -5,6 +5,15 @@
 {% block content %}
 <h1 class="text-2xl font-bold">Subscribers</h1>
 
+<form method="post" class="bg-white rounded shadow p-4 mt-5 flex flex-wrap items-end gap-3">
+  {% csrf_token %}
+  <label class="text-sm font-medium text-slate-700">Send a test welcome email
+    <input type="email" name="test_email" placeholder="{{ request.user.email|default:'Admin email' }}" class="block mt-1 border rounded px-3 py-2 text-sm font-normal" aria-describedby="welcome-test-help">
+  </label>
+  <button type="submit" class="bg-slate-800 text-white text-sm px-4 py-2 rounded hover:bg-slate-700">Send test welcome email</button>
+  <p id="welcome-test-help" class="w-full text-xs text-slate-500">Leave the address blank to send to your admin email. The unsubscribe link in a test email is only a placeholder.</p>
+</form>
+
 <div class="grid sm:grid-cols-3 gap-4 mt-5">
   <div class="bg-white rounded shadow p-4"><p class="text-3xl font-bold text-green-700">{{ counts.active }}</p><p class="text-sm text-slate-500">active</p></div>
   <div class="bg-white rounded shadow p-4"><p class="text-3xl font-bold text-slate-400">{{ counts.unsubscribed }}</p><p class="text-sm text-slate-500">unsubscribed</p></div>

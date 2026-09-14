@@ -1052,7 +1052,39 @@ class AutomationPanelTests(TestCase):
         self.assertContains(response, "every Thursday")
 
 
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    },
+)
 class DashboardAuthTests(TestCase):
+    def test_welcome_test_sends_existing_template_without_subscribing(self):
+        make_region()
+        User.objects.create_superuser("admin", "admin@example.com", "pass12345")
+        self.client.login(username="admin", password="pass12345")
+
+        response = self.client.post("/admin-dashboard/subscribers/", {"test_email": "preview@example.com"}, follow=True)
+
+        self.assertContains(response, "Welcome test email sent to preview@example.com")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["preview@example.com"])
+        self.assertIn("test-token", mail.outbox[0].body)
+        self.assertIn("test-token", mail.outbox[0].alternatives[0][0])
+        self.assertEqual(Subscriber.objects.count(), 0)
+
+    def test_welcome_test_defaults_to_admin_and_rejects_invalid_address(self):
+        make_region()
+        User.objects.create_superuser("admin", "admin@example.com", "pass12345")
+        self.client.login(username="admin", password="pass12345")
+
+        self.client.post("/admin-dashboard/subscribers/", {})
+        self.assertEqual(mail.outbox[0].to, ["admin@example.com"])
+        response = self.client.post("/admin-dashboard/subscribers/", {"test_email": "not-an-email"}, follow=True)
+        self.assertContains(response, "Enter a valid email address")
+        self.assertEqual(len(mail.outbox), 1)
+
     def test_dashboard_requires_staff(self):
         make_region()
         response = self.client.get("/admin-dashboard/")
