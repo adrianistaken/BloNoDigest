@@ -3,7 +3,10 @@
 {% block title %}Events — Digest Admin{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold">Events</h1>
+<div class="flex items-center justify-between gap-3">
+  <h1 class="text-2xl font-bold">Events</h1>
+  <a href="{% url 'dashboard:event_create' %}" class="bg-slate-900 text-white px-4 py-2 rounded hover:bg-slate-700">Add event</a>
+</div>
 
 <form method="get" class="bg-white rounded shadow p-4 mt-4 flex flex-wrap gap-3 items-end text-sm">
   <label class="block">
@@ -68,7 +71,7 @@
         </td>
         <td class="px-4 py-2 whitespace-nowrap">{{ event.starts_at|date:"D M j" }}{% if event.time_is_known %} {{ event.starts_at|date:"g:i A" }}{% endif %}</td>
         <td class="px-4 py-2">{{ event.location_display|truncatechars:35 }}</td>
-        <td class="px-4 py-2 text-slate-500">{{ event.primary_source.name|default:"—"|truncatechars:25 }}</td>
+        <td class="px-4 py-2 text-slate-500">{{ event.primary_source.name|default:"Manual"|truncatechars:25 }}</td>
         <td class="px-4 py-2 text-xs text-slate-500">{{ event.categories|join:", " }}</td>
         <td class="px-4 py-2 font-mono">{{ event.quality_score }}</td>
         <td class="px-4 py-2">

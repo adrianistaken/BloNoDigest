@@ -2,6 +2,7 @@
 
 import logging
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.contrib import messages
@@ -20,7 +21,9 @@ from .ai import AIShorteningError, shorten_event_description
 from .automations import get_automations
 from .digests import generate_digest_issue, upcoming_weekend
 from .emails import email_layout, featured_pick, render_digest, send_digest, send_test_email, send_test_welcome_email
-from .forms import EventCopyForm, EventForm
+from .forms import EventCopyForm, EventForm, ManualEventForm
+from .ingest.dedupe import duplicate_group_key
+from .ingest.score import score_event
 from .ingest.importer import import_source
 from .models import (
     DigestEvent,
@@ -250,6 +253,24 @@ def copy_desk(request):
             "current": {"event": event_id, "status": status, "window": window, "q": query},
         },
     )
+
+
+@staff_member_required
+def event_create(request):
+    region = _default_region()
+    with timezone.override(ZoneInfo(region.timezone)):
+        form = ManualEventForm(request.POST if request.method == "POST" else None)
+        if request.method == "POST" and form.is_valid():
+            event = form.save(commit=False)
+            event.region = region
+            event.timezone = region.timezone
+            event.approved_for_digest = event.status == Event.Status.APPROVED
+            event.quality_score = score_event(event)
+            event.duplicate_group_key = duplicate_group_key(event.canonical_title, event.starts_at)
+            event.save()
+            messages.success(request, "Manual event created.")
+            return redirect("dashboard:event_detail", event_id=event.pk)
+        return render(request, "dashboard/event_create.html", {"form": form, "region": region})
 
 
 @staff_member_required

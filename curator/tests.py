@@ -1269,3 +1269,75 @@ class AIShorteningTests(TestCase):
         self.assertEqual(request.kwargs["json"]["input"], "Long promotional source copy.")
         self.assertFalse(request.kwargs["json"]["store"])
         self.assertEqual(request.kwargs["timeout"], 12)
+
+
+class ManualEventTests(TestCase):
+    def setUp(self):
+        self.region = make_region()
+        self.user = User.objects.create_user(username="manual-editor", is_staff=True)
+        self.client.force_login(self.user)
+        self.url = "/admin-dashboard/events/new/"
+        self.data = {
+            "canonical_title": "Neighborhood picnic", "start_date": "2030-07-12",
+            "status": "approved",
+        }
+
+    def test_create_without_source_or_known_time(self):
+        response = self.client.post(self.url, self.data)
+        event = Event.objects.get()
+        self.assertRedirects(response, f"/admin-dashboard/events/{event.pk}/")
+        self.assertEqual(event.region, self.region)
+        self.assertIsNone(event.primary_source)
+        self.assertEqual(event.source_url, "")
+        self.assertFalse(event.time_is_known)
+        self.assertTrue(event.approved_for_digest)
+        self.assertEqual(timezone.localtime(event.starts_at, CT).date(), date(2030, 7, 12))
+        self.assertTrue(event.duplicate_group_key)
+
+    def test_time_uses_region_timezone_and_enters_digest(self):
+        self.region.timezone = "America/New_York"
+        self.region.save()
+        response = self.client.post(self.url, {
+            **self.data, "start_time": "18:30", "venue_name": "Community park",
+            "description": "Bring a picnic and join neighbors for an evening in the park.",
+            "price_text": "Free", "categories": ["community", "free"],
+        })
+        self.assertEqual(response.status_code, 302)
+        event = Event.objects.get()
+        self.assertEqual(event.starts_at.hour, 22)
+        self.assertTrue(event.time_is_known)
+        self.assertEqual(event.timezone, "America/New_York")
+        issue = generate_digest_issue(self.region.slug, start_date=date(2030, 7, 12))
+        self.assertTrue(issue.digest_events.filter(event=event).exists())
+
+    def test_save_for_review(self):
+        self.client.post(self.url, {**self.data, "status": "needs_review"})
+        self.assertFalse(Event.objects.get().approved_for_digest)
+
+    def test_invalid_submission_preserves_values(self):
+        for changes, field in [
+            ({"canonical_title": ""}, "canonical_title"),
+            ({"start_date": ""}, "start_date"),
+            ({"ends_at": "2030-07-11T12:00"}, "ends_at"),
+            ({"source_url": "invalid"}, "source_url"),
+            ({"status": "rejected"}, "status"),
+        ]:
+            with self.subTest(field=field):
+                response = self.client.post(self.url, {**self.data, **changes})
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(field, response.context["form"].errors)
+        self.assertFalse(Event.objects.exists())
+
+    def test_form_and_entry_point(self):
+        self.assertContains(self.client.get(self.url), "Create event")
+        self.assertContains(self.client.get("/admin-dashboard/events/"), self.url)
+        self.assertFalse(Event.objects.exists())
+
+    def test_staff_required(self):
+        self.client.logout()
+        self.assertEqual(self.client.post(self.url, self.data).status_code, 302)
+        self.user.is_staff = False
+        self.user.save()
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.post(self.url, self.data).status_code, 302)
+        self.assertFalse(Event.objects.exists())
