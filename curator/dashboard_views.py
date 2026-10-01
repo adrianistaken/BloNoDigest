@@ -203,7 +203,7 @@ def copy_desk(request):
                 event.description = event.editorial_description
             event.save()
             if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                return JsonResponse({"saved": True})
+                return JsonResponse({"saved": True, "has_editorial_copy": event.has_editorial_copy})
             messages.success(request, f"Newsletter copy saved: {event.canonical_title}")
         elif request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({"errors": form.errors.get_json_data()}, status=400)

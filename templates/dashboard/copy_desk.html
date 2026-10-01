@@ -6,7 +6,7 @@
 <div class="flex flex-wrap items-end justify-between gap-3">
   <div>
     <h1 class="text-2xl font-bold">Copy desk</h1>
-    <p class="mt-1 max-w-2xl text-sm text-slate-500">Edit an event once here. Your newsletter copy survives later imports and appears in every new digest draft.</p>
+    <p class="mt-1 max-w-2xl text-sm text-slate-500">Save the wording you want to use in your newsletter. New drafts use your saved copy, and updates from the event source won’t overwrite it.</p>
   </div>
   <a href="{% url 'dashboard:digests' %}" class="text-sm text-blue-700 underline">Go to digest assembly</a>
 </div>
@@ -57,7 +57,7 @@
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2">
           <span class="font-semibold text-slate-900">{{ event.editorial_title|default:event.canonical_title|truncatechars:85 }}</span>
-          {% if event.has_editorial_copy %}<span class="rounded bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-800">edited</span>{% else %}<span class="rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">source copy</span>{% endif %}
+          <span class="js-copy-badge rounded px-2 py-0.5 text-[11px] font-semibold {% if event.has_editorial_copy %}bg-indigo-100 text-indigo-800{% else %}bg-amber-100 text-amber-800{% endif %}">{% if event.has_editorial_copy %}edited{% else %}source copy{% endif %}</span>
           {% if event.status == 'approved' %}<span class="text-xs font-semibold text-green-700">approved</span>{% elif event.status == 'needs_review' %}<span class="text-xs font-semibold text-amber-700">needs review</span>{% else %}<span class="text-xs text-slate-500">{{ event.status }}</span>{% endif %}
         </div>
         <p class="mt-0.5 text-xs text-slate-500">{{ event.starts_at|date:"D, M j" }}{% if event.time_is_known %} at {{ event.starts_at|date:"g:i A" }}{% else %}, time TBD{% endif %} · {{ event.location_display }} · {{ event.primary_source.name|default:"manual" }}</p>
@@ -157,7 +157,14 @@
       });
       const result = await response.json();
       if (!response.ok) throw new Error('Check the highlighted fields and try again.');
-      status.textContent = 'Saved. Future imports and drafts will keep this copy.';
+      const badge = form.closest('.copy-editor').querySelector('.js-copy-badge');
+      const edited = result.has_editorial_copy;
+      badge.textContent = edited ? 'edited' : 'source copy';
+      badge.classList.toggle('bg-indigo-100', edited);
+      badge.classList.toggle('text-indigo-800', edited);
+      badge.classList.toggle('bg-amber-100', !edited);
+      badge.classList.toggle('text-amber-800', !edited);
+      status.textContent = edited ? 'Newsletter copy saved.' : 'Saved. Using source copy.';
       status.className = 'js-copy-status text-xs font-semibold text-green-700';
       form.closest('.copy-editor').querySelector('summary').classList.add('ring-1', 'ring-inset', 'ring-green-200');
     } catch (error) {

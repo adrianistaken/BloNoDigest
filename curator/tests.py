@@ -1244,6 +1244,18 @@ class AIShorteningTests(TestCase):
         self.assertEqual(event.editorial_description, "Concise newsletter copy.")
         self.assertEqual(event.editorial_price, "Free")
         self.assertEqual(event.description, "Long source copy.")
+        self.assertEqual(response.json(), {"saved": True, "has_editorial_copy": True})
+
+        response = self.client.post(
+            "/admin-dashboard/copy-desk/",
+            {"event_id": event.pk},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"saved": True, "has_editorial_copy": False})
+        event.refresh_from_db()
+        self.assertFalse(event.has_editorial_copy)
+        self.assertEqual(event.description, "Long source copy.")
 
     def test_copy_desk_fills_missing_event_description_on_save(self):
         region = make_region()
