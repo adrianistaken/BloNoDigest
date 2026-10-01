@@ -1341,3 +1341,53 @@ class ManualEventTests(TestCase):
         self.client.force_login(self.user)
         self.assertEqual(self.client.post(self.url, self.data).status_code, 302)
         self.assertFalse(Event.objects.exists())
+
+class QuickEventTests(TestCase):
+    def setUp(self):
+        self.region = make_region()
+        self.user = User.objects.create_user(username="quick-editor", is_staff=True)
+        self.client.force_login(self.user)
+        self.url = "/admin-dashboard/events/new/quick/"
+        self.data = {
+            "start_date": "2030-07-12",
+            "editorial_title": "Neighborhood picnic",
+            "editorial_time": "Saturday, 6–8 PM",
+            "editorial_location": "Community park",
+            "editorial_price": "Free",
+            "source_url": "https://example.com/neighborhood-picnic",
+            "editorial_description": "Bring a picnic and meet your neighbors.",
+        }
+
+    def test_form_contains_newsletter_fields_and_ai_control(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "Shorten with AI")
+        self.assertContains(response, 'data-source="#id_editorial_description"')
+        self.assertContains(response, 'data-target="#id_editorial_description"')
+        self.assertContains(self.client.get("/admin-dashboard/events/"), "Add Quick Event")
+
+    def test_creates_regular_approved_event_from_copy(self):
+        response = self.client.post(self.url, self.data)
+        event = Event.objects.get()
+        self.assertRedirects(response, f"/admin-dashboard/events/{event.pk}/")
+        self.assertEqual(event.region, self.region)
+        self.assertEqual(event.status, Event.Status.APPROVED)
+        self.assertTrue(event.approved_for_digest)
+        self.assertFalse(event.time_is_known)
+        self.assertEqual(timezone.localtime(event.starts_at, CT).date(), date(2030, 7, 12))
+        self.assertEqual(event.canonical_title, self.data["editorial_title"])
+        self.assertEqual(event.description, self.data["editorial_description"])
+        self.assertEqual(event.venue_name, self.data["editorial_location"])
+        self.assertEqual(event.price_text, self.data["editorial_price"])
+        self.assertEqual(event.editorial_time, self.data["editorial_time"])
+        self.assertEqual(event.source_url, self.data["source_url"])
+        self.assertContains(self.client.get(response.url), self.data["editorial_time"])
+
+    def test_required_fields_and_staff_access(self):
+        response = self.client.post(self.url, {**self.data, "editorial_title": ""})
+        self.assertIn("editorial_title", response.context["form"].errors)
+        response = self.client.post(self.url, {**self.data, "start_date": ""})
+        self.assertIn("start_date", response.context["form"].errors)
+        self.assertFalse(Event.objects.exists())
+        self.client.logout()
+        self.assertEqual(self.client.post(self.url, self.data).status_code, 302)
+        self.assertFalse(Event.objects.exists())

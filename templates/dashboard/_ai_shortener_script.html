@@ -55,7 +55,7 @@
         target.value = result.description;
         target.dispatchEvent(new Event("input", {bubbles: true}));
         target.focus();
-        showStatus("Draft ready. Review it, make any edits, then save changes.");
+        showStatus(button.dataset.successMessage || "Draft ready. Review it, make any edits, then save changes.");
         label.textContent = "Regenerate";
       } catch (error) {
         showStatus(error.message || "AI shortening failed. Try again.", true);

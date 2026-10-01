@@ -96,3 +96,22 @@ class ManualEventForm(EventForm):
                 if data.get("ends_at") and data["ends_at"] < starts_at:
                     self.add_error("ends_at", "The end must be on or after the start.")
         return data
+
+
+class QuickEventForm(EventCopyForm):
+    """Create a manual event directly from its newsletter copy."""
+
+    start_date = forms.DateField(
+        label="Event date",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Required to place the event in upcoming digests.",
+    )
+    editorial_title = forms.CharField(max_length=300, label="Newsletter title")
+
+    class Meta(EventCopyForm.Meta):
+        fields = [
+            "start_date", "editorial_title", "editorial_time",
+            "editorial_location", "editorial_price", "source_url", "editorial_description",
+        ]
+        labels = {**EventCopyForm.Meta.labels, "source_url": "Event link"}
+        help_texts = {"source_url": "Optional — link to event details or tickets."}

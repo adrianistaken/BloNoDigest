@@ -1,7 +1,7 @@
 """Internal review dashboard (spec §19/§23). Staff-only, utilitarian."""
 
 import logging
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -10,6 +10,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
+from django.forms.utils import from_current_timezone
 from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -21,7 +22,7 @@ from .ai import AIShorteningError, shorten_event_description
 from .automations import get_automations
 from .digests import generate_digest_issue, upcoming_weekend
 from .emails import email_layout, featured_pick, render_digest, send_digest, send_test_email, send_test_welcome_email
-from .forms import EventCopyForm, EventForm, ManualEventForm
+from .forms import EventCopyForm, EventForm, ManualEventForm, QuickEventForm
 from .ingest.dedupe import duplicate_group_key
 from .ingest.score import score_event
 from .ingest.importer import import_source
@@ -271,6 +272,31 @@ def event_create(request):
             messages.success(request, "Manual event created.")
             return redirect("dashboard:event_detail", event_id=event.pk)
         return render(request, "dashboard/event_create.html", {"form": form, "region": region})
+
+
+@staff_member_required
+def quick_event_create(request):
+    region = _default_region()
+    with timezone.override(ZoneInfo(region.timezone)):
+        form = QuickEventForm(request.POST if request.method == "POST" else None)
+        if request.method == "POST" and form.is_valid():
+            event = form.save(commit=False)
+            event.region = region
+            event.timezone = region.timezone
+            event.canonical_title = event.editorial_title
+            event.description = event.editorial_description
+            event.venue_name = event.editorial_location
+            event.price_text = event.editorial_price
+            event.starts_at = from_current_timezone(datetime.combine(form.cleaned_data["start_date"], time.min))
+            event.time_is_known = False
+            event.status = Event.Status.APPROVED
+            event.approved_for_digest = True
+            event.quality_score = score_event(event)
+            event.duplicate_group_key = duplicate_group_key(event.canonical_title, event.starts_at)
+            event.save()
+            messages.success(request, "Quick event created.")
+            return redirect("dashboard:event_detail", event_id=event.pk)
+        return render(request, "dashboard/quick_event_create.html", {"form": form, "region": region})
 
 
 @staff_member_required

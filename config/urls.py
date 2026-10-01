@@ -11,6 +11,7 @@ dashboard_patterns = (
         path("import-runs/", dashboard_views.import_runs, name="import_runs"),
         path("events/", dashboard_views.events, name="events"),
         path("events/new/", dashboard_views.event_create, name="event_create"),
+        path("events/new/quick/", dashboard_views.quick_event_create, name="quick_event_create"),
         path("copy-desk/", dashboard_views.copy_desk, name="copy_desk"),
         path("events/<int:event_id>/", dashboard_views.event_detail, name="event_detail"),
         path("events/<int:event_id>/action/", dashboard_views.event_action, name="event_action"),
