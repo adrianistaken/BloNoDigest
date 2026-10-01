@@ -191,14 +191,17 @@ def events(request):
 
 @staff_member_required
 def copy_desk(request):
-    """Edit durable newsletter copy without touching refreshable source data."""
+    """Edit newsletter copy, filling missing event descriptions on save."""
     region = _default_region()
 
     if request.method == "POST":
         event = get_object_or_404(Event, pk=request.POST.get("event_id"), region=region)
         form = EventCopyForm(request.POST, instance=event, prefix=f"event-{event.pk}")
         if form.is_valid():
-            form.save()
+            event = form.save(commit=False)
+            if not event.description.strip():
+                event.description = event.editorial_description
+            event.save()
             if request.headers.get("x-requested-with") == "XMLHttpRequest":
                 return JsonResponse({"saved": True})
             messages.success(request, f"Newsletter copy saved: {event.canonical_title}")

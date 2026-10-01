@@ -1210,7 +1210,9 @@ class AIShorteningTests(TestCase):
 
         response = self.client.get(f"/admin-dashboard/copy-desk/?event={event.pk}")
 
-        self.assertContains(response, "Shorten source with AI")
+        self.assertContains(response, "Shorten with AI")
+        self.assertContains(response, f'data-source="#id_event-{event.pk}-editorial_description"')
+        self.assertNotContains(response, 'data-source=".js-ai-source"')
         self.assertContains(response, "A much longer source description.")
         self.assertContains(response, "Newsletter copy")
         self.assertContains(response, f'/admin-dashboard/events/{event.pk}/')
@@ -1241,6 +1243,32 @@ class AIShorteningTests(TestCase):
         event.refresh_from_db()
         self.assertEqual(event.editorial_description, "Concise newsletter copy.")
         self.assertEqual(event.editorial_price, "Free")
+        self.assertEqual(event.description, "Long source copy.")
+
+    def test_copy_desk_fills_missing_event_description_on_save(self):
+        region = make_region()
+        self.client.force_login(self.user)
+        for description in ("", " \n "):
+            for ajax in (False, True):
+                with self.subTest(description=description, ajax=ajax):
+                    event = Event.objects.create(
+                        region=region,
+                        canonical_title="Downtown Festival",
+                        description=description,
+                        starts_at=timezone.now() + timedelta(days=2),
+                    )
+                    response = self.client.post(
+                        "/admin-dashboard/copy-desk/",
+                        {
+                            "event_id": event.pk,
+                            f"event-{event.pk}-editorial_description": "Reviewed AI copy.",
+                        },
+                        **({"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"} if ajax else {}),
+                    )
+                    self.assertEqual(response.status_code, 200 if ajax else 302)
+                    event.refresh_from_db()
+                    self.assertEqual(event.description, "Reviewed AI copy.")
+                    self.assertEqual(event.editorial_description, "Reviewed AI copy.")
 
     @override_settings(
         OPENAI_API_KEY="test-key",
