@@ -15,7 +15,11 @@
       const status = scope.querySelector(".js-ai-status");
       const label = button.querySelector(".js-ai-label");
       const originalLabel = label.textContent;
-      const sourceText = (source?.value ?? source?.textContent ?? "").trim();
+      let sourceText = (source?.value ?? source?.textContent ?? "").trim();
+      if (!sourceText && button.dataset.fallbackSource) {
+        const fallback = scope.querySelector(button.dataset.fallbackSource);
+        sourceText = (fallback?.value ?? fallback?.textContent ?? "").trim();
+      }
 
       const showStatus = (message, isError = false) => {
         status.textContent = message;

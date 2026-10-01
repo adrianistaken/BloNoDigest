@@ -1213,12 +1213,20 @@ class AIShorteningTests(TestCase):
         self.assertContains(response, "Shorten with AI")
         self.assertContains(response, f'data-source="#id_event-{event.pk}-editorial_description"')
         self.assertNotContains(response, 'data-source=".js-ai-source"')
+        self.assertContains(response, 'data-fallback-source=".js-ai-source"')
+        self.assertContains(response, '<span class="js-ai-source">A much longer source description.</span>', html=True)
         self.assertContains(response, "A much longer source description.")
         self.assertContains(response, "Newsletter copy")
         self.assertContains(response, f'/admin-dashboard/events/{event.pk}/')
         self.assertContains(response, "View full event")
         self.assertContains(response, "data-ai-scope")
         self.assertContains(response, 'button.closest("[data-ai-scope]")')
+
+        event.description = ""
+        event.save()
+        response = self.client.get(f"/admin-dashboard/copy-desk/?event={event.pk}")
+        self.assertContains(response, "No source description.")
+        self.assertNotContains(response, '<span class="js-ai-source">')
 
     def test_copy_desk_saves_durable_newsletter_copy(self):
         region = make_region()
