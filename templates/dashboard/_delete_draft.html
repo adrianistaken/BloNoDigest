@@ -1,0 +1,6 @@
+{% if issue.status == 'draft' %}
+<form method="post" action="{% url 'dashboard:digest_detail' issue.pk %}" onsubmit="return confirm('Delete this draft? This cannot be undone. Your original events will be kept.')">
+  {% csrf_token %}
+  <button type="submit" name="action" value="delete_draft" class="text-red-700 border border-red-200 text-sm px-4 py-2 rounded hover:bg-red-50" aria-label="Delete draft: {{ issue.title }}">Delete draft</button>
+</form>
+{% endif %}

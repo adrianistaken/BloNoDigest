@@ -391,6 +391,13 @@ def digest_detail(request, issue_id):
 
     if request.method == "POST":
         action = request.POST.get("action")
+        if action == "delete_draft":
+            if issue.status != DigestIssue.Status.DRAFT:
+                messages.error(request, "Only draft digests can be deleted.")
+                return redirect("dashboard:digest_detail", issue_id=issue.pk)
+            issue.delete()
+            messages.success(request, "Draft deleted. Your events are still available.")
+            return redirect("dashboard:digests")
         if action in ("set_blurb", "set_placement", "set_featured", "remove", "restore"):
             _digest_event_action(request, issue, action)
         elif action == "create_section":

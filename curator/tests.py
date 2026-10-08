@@ -560,6 +560,42 @@ class DigestTests(TestCase):
                 self.assertIn("Iron Ninja Games", html)
                 self.assertIn("4–6pm", html)
 
+    def test_delete_draft_preserves_events_and_other_digests(self):
+        event = self._event("Keep original event")
+        issue = generate_digest_issue(self.region.slug)
+        other = generate_digest_issue(self.region.slug)
+        self.client.force_login(User.objects.create_user("draft-editor", is_staff=True))
+        url = f"/admin-dashboard/digests/{issue.pk}/"
+        for page in ["/admin-dashboard/digests/", url]:
+            response = self.client.get(page)
+            self.assertContains(response, 'value="delete_draft"')
+            self.assertContains(response, "return confirm('Delete this draft?")
+        self.client.get(url, {"action": "delete_draft"})
+        self.assertTrue(DigestIssue.objects.filter(pk=issue.pk).exists())
+        response = self.client.post(url, {"action": "delete_draft"})
+        self.assertRedirects(response, "/admin-dashboard/digests/")
+        self.assertFalse(DigestIssue.objects.filter(pk=issue.pk).exists())
+        self.assertTrue(Event.objects.filter(pk=event.pk).exists())
+        self.assertTrue(other.digest_events.filter(event=event).exists())
+
+    def test_delete_draft_rejects_non_drafts_and_requires_staff(self):
+        issue = generate_digest_issue(self.region.slug)
+        url = f"/admin-dashboard/digests/{issue.pk}/"
+        self.assertEqual(self.client.post(url, {"action": "delete_draft"}).status_code, 302)
+        self.assertTrue(DigestIssue.objects.filter(pk=issue.pk).exists())
+        self.client.force_login(User.objects.create_user("regular-user"))
+        self.assertEqual(self.client.post(url, {"action": "delete_draft"}).status_code, 302)
+        self.assertTrue(DigestIssue.objects.filter(pk=issue.pk).exists())
+        self.client.force_login(User.objects.create_user("staff-editor", is_staff=True))
+        for status in ["sent", "reviewed", "archived"]:
+            issue.status = status
+            issue.save()
+            self.assertNotContains(self.client.get(url), 'value="delete_draft"')
+            self.assertNotContains(self.client.get("/admin-dashboard/digests/"), 'value="delete_draft"')
+            response = self.client.post(url, {"action": "delete_draft"})
+            self.assertRedirects(response, url)
+            self.assertTrue(DigestIssue.objects.filter(pk=issue.pk, status=status).exists())
+
     def test_source_and_custom_blurbs_run_verbatim(self):
         long_description = "word " * 100
         event = self._event("Wordy Event", day_offset=1, description=long_description.strip())
