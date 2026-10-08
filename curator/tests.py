@@ -521,7 +521,7 @@ class DigestTests(TestCase):
             **kwargs,
         )
 
-    def test_generation_places_events_and_excludes_junk(self):
+    def test_generation_includes_approved_events_regardless_of_score(self):
         self._event("Farmers Market", day_offset=1, hour=9, categories=["market", "free"])
         self._event("Jazz Night", day_offset=0, hour=19, categories=["music", "date_night"])
         self._event("Rejected thing", status="rejected")
@@ -534,9 +534,31 @@ class DigestTests(TestCase):
         self.assertIn("Jazz Night", titles)
         self.assertIn("Next week concert", titles)
         self.assertNotIn("Rejected thing", titles)
-        self.assertNotIn("Low quality", titles)
+        self.assertIn("Low quality", titles)
         next_week = issue.digest_events.get(event__canonical_title="Next week concert")
         self.assertEqual(next_week.section, "next_week")
+
+    def test_weekend_sections_do_not_drop_approved_overflow(self):
+        for categories, city in [([], "Bloomington"), (["family"], "Normal"), ([], "Peoria")]:
+            with self.subTest(categories=categories, city=city):
+                Event.objects.all().delete()
+                events = [
+                    self._event(f"Approved event {i}", categories=categories, city=city)
+                    for i in range(20)
+                ]
+                manual = self._event(
+                    "Iron Ninja Games", day_offset=2, hour=0, score=0,
+                    time_is_known=False, editorial_time="4–6pm",
+                    categories=categories, city=city,
+                )
+                issue = generate_digest_issue(self.region.slug, start_date=self.friday)
+                self.assertCountEqual(
+                    issue.digest_events.values_list("event_id", flat=True),
+                    [event.pk for event in events] + [manual.pk],
+                )
+                html, _ = render_digest(issue, "#")
+                self.assertIn("Iron Ninja Games", html)
+                self.assertIn("4–6pm", html)
 
     def test_source_and_custom_blurbs_run_verbatim(self):
         long_description = "word " * 100

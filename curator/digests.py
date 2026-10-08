@@ -11,10 +11,8 @@ from zoneinfo import ZoneInfo
 
 from .models import DigestEvent, DigestIssue, Event, Region
 
-MIN_QUALITY_SCORE = 5
 NEXT_WEEK_MIN_SCORE = 8
 TOP_PICKS_COUNT = 5
-MAX_PER_SECTION = 8
 MAX_NEXT_WEEK = 5
 
 CORE_CITIES = {"bloomington", "normal"}
@@ -70,8 +68,8 @@ def generate_digest_issue(region_slug, start_date=None):
     base = Event.objects.filter(
         region=region,
         status=Event.Status.APPROVED,
-        quality_score__gte=MIN_QUALITY_SCORE,
     )
+    # Approval is the inclusion decision; scores only determine weekend ordering.
     weekend_events = list(
         base.filter(starts_at__gte=weekend_start, starts_at__lt=weekend_end).order_by("-quality_score", "starts_at")
     )
@@ -107,9 +105,8 @@ def generate_digest_issue(region_slug, start_date=None):
             continue
         section = pick_section(event) or "top_picks"
         bucket = sections.setdefault(section, [])
-        if len(bucket) < MAX_PER_SECTION:
-            bucket.append(event)
-            placed.add(event.pk)
+        bucket.append(event)
+        placed.add(event.pk)
     if next_week_events:
         sections["next_week"] = next_week_events
 
