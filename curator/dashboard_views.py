@@ -20,7 +20,7 @@ from django.views.decorators.http import require_POST
 
 from .ai import AIShorteningError, shorten_event_description
 from .automations import get_automations
-from .digests import generate_digest_issue, upcoming_weekend
+from .digests import duplicate_digest_issue, generate_digest_issue, upcoming_weekend
 from .emails import email_layout, featured_pick, render_digest, send_digest, send_test_email, send_test_welcome_email
 from .forms import EventCopyForm, EventForm, ManualEventForm, QuickEventForm
 from .ingest.dedupe import duplicate_group_key
@@ -391,6 +391,10 @@ def digest_detail(request, issue_id):
 
     if request.method == "POST":
         action = request.POST.get("action")
+        if action == "duplicate_issue":
+            duplicate = duplicate_digest_issue(issue)
+            messages.success(request, "Digest duplicated as a new draft.")
+            return redirect("dashboard:digest_detail", issue_id=duplicate.pk)
         if action == "delete_draft":
             if issue.status != DigestIssue.Status.DRAFT:
                 messages.error(request, "Only draft digests can be deleted.")

@@ -560,6 +560,64 @@ class DigestTests(TestCase):
                 self.assertIn("Iron Ninja Games", html)
                 self.assertIn("4–6pm", html)
 
+    def test_duplicate_copies_content_and_sections_without_send_history(self):
+        event = self._event("Original event")
+        issue = generate_digest_issue(self.region.slug)
+        issue.status = "sent"
+        issue.sent_at = timezone.now()
+        issue.rendered_html = "Old public snapshot"
+        issue.media_enabled = True
+        issue.media_url = "https://example.com/image.png"
+        issue.save()
+        section = issue.custom_sections.create(title="My picks", position=3)
+        issue.custom_sections.create(title="Empty section", position=4)
+        entry = issue.digest_events.get(event=event)
+        entry.custom_section = section
+        entry.custom_title = "Edited title"
+        entry.custom_time = "Noon"
+        entry.custom_location = "My venue"
+        entry.custom_blurb = "My description"
+        entry.custom_price = "$5"
+        entry.featured = True
+        entry.include_in_email = False
+        entry.save()
+        self.client.force_login(User.objects.create_user("copy-editor", is_staff=True))
+        url = f"/admin-dashboard/digests/{issue.pk}/"
+        for page in ["/admin-dashboard/digests/", url]:
+            response = self.client.get(page)
+            self.assertContains(response, 'value="duplicate_issue"')
+            self.assertContains(response, "return confirm('Duplicate this digest")
+        response = self.client.post(url, {"action": "duplicate_issue"})
+        duplicate = DigestIssue.objects.exclude(pk=issue.pk).get()
+        self.assertRedirects(response, f"/admin-dashboard/digests/{duplicate.pk}/")
+        self.assertEqual(duplicate.status, "draft")
+        self.assertIsNone(duplicate.sent_at)
+        self.assertEqual(duplicate.rendered_html, "")
+        self.assertEqual(duplicate.title, f"{issue.title} (copy)")
+        for field in ["subject_line", "intro_text", "target_start_date", "target_end_date", "media_enabled", "media_url"]:
+            self.assertEqual(getattr(duplicate, field), getattr(issue, field))
+        copied = duplicate.digest_events.get()
+        for field in ["event_id", "section", "position", "custom_title", "custom_time", "custom_location", "custom_blurb", "custom_price", "featured", "include_in_email"]:
+            self.assertEqual(getattr(copied, field), getattr(entry, field))
+        self.assertNotEqual(copied.custom_section_id, section.pk)
+        self.assertEqual(copied.custom_section.digest_issue_id, duplicate.pk)
+        self.assertEqual(duplicate.custom_sections.count(), 2)
+        duplicate.delete()
+        issue.refresh_from_db()
+        self.assertEqual(issue.status, "sent")
+        self.assertTrue(issue.digest_events.filter(pk=entry.pk).exists())
+        self.assertTrue(Event.objects.filter(pk=event.pk).exists())
+
+    def test_duplicate_requires_staff_and_post(self):
+        issue = generate_digest_issue(self.region.slug)
+        url = f"/admin-dashboard/digests/{issue.pk}/"
+        self.client.post(url, {"action": "duplicate_issue"})
+        self.client.force_login(User.objects.create_user("copy-regular"))
+        self.client.post(url, {"action": "duplicate_issue"})
+        self.client.force_login(User.objects.create_user("copy-staff", is_staff=True))
+        self.client.get(url, {"action": "duplicate_issue"})
+        self.assertEqual(DigestIssue.objects.count(), 1)
+
     def test_delete_draft_preserves_events_and_other_digests(self):
         event = self._event("Keep original event")
         issue = generate_digest_issue(self.region.slug)

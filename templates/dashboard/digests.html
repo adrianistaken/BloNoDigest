@@ -34,7 +34,7 @@
         </td>
         <td class="px-4 py-2">{{ issue.digest_events.count }}</td>
         <td class="px-4 py-2 text-slate-500">{{ issue.sent_at|default:"—" }}</td>
-        <td class="px-4 py-2">{% include "dashboard/_delete_draft.html" %}</td>
+        <td class="px-4 py-2">{% include "dashboard/_digest_actions.html" %}</td>
       </tr>
       {% empty %}
       <tr><td colspan="6" class="px-4 py-6 text-center text-slate-500">No digests yet — approve some events, then generate a draft.</td></tr>

@@ -6,6 +6,7 @@ section when strong events exist. Drafts are never sent automatically.
 
 from datetime import datetime, time, timedelta
 
+from django.db import transaction
 from django.utils import timezone
 from zoneinfo import ZoneInfo
 
@@ -16,6 +17,37 @@ TOP_PICKS_COUNT = 5
 MAX_NEXT_WEEK = 5
 
 CORE_CITIES = {"bloomington", "normal"}
+
+
+@transaction.atomic
+def duplicate_digest_issue(source):
+    """Copy editorial content into an independent draft, without send history."""
+    fields = (
+        "region_id", "subject_line", "intro_text", "target_start_date",
+        "target_end_date", "media_enabled", "media_url", "media_alt",
+        "media_caption", "media_link", "media_placement",
+    )
+    issue = DigestIssue.objects.create(
+        **{field: getattr(source, field) for field in fields},
+        title=f"{source.title[:293]} (copy)",
+        status=DigestIssue.Status.DRAFT,
+        generated_at=timezone.now(),
+    )
+    sections = {}
+    for section in source.custom_sections.all():
+        sections[section.pk] = issue.custom_sections.create(
+            title=section.title, position=section.position,
+        )
+    event_fields = (
+        "event_id", "section", "position", "custom_title", "custom_time",
+        "custom_location", "custom_blurb", "custom_price", "include_in_email", "featured",
+    )
+    for entry in source.digest_events.order_by("id"):
+        issue.digest_events.create(
+            **{field: getattr(entry, field) for field in event_fields},
+            custom_section=sections.get(entry.custom_section_id),
+        )
+    return issue
 
 
 def upcoming_weekend(region_tz, today=None):

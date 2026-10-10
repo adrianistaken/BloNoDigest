@@ -1,0 +1,16 @@
+<div class="flex items-center gap-2">
+  <form method="post" action="{% url 'dashboard:digest_detail' issue.pk %}" onsubmit="return confirm('Duplicate this digest as a new draft? Its content, sections, and event edits will be copied. Nothing will be sent.')">
+    {% csrf_token %}
+    <button type="submit" name="action" value="duplicate_issue" class="inline-flex items-center justify-center p-2 text-slate-700 border border-slate-200 rounded hover:bg-slate-100" title="Duplicate digest" aria-label="Duplicate digest: {{ issue.title }}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>
+  </form>
+  {% if issue.status == 'draft' %}
+  <form method="post" action="{% url 'dashboard:digest_detail' issue.pk %}" onsubmit="return confirm('Delete this draft? This cannot be undone. Your original events will be kept.')">
+    {% csrf_token %}
+    <button type="submit" name="action" value="delete_draft" class="inline-flex items-center justify-center p-2 text-red-700 border border-red-200 rounded hover:bg-red-50" title="Delete draft" aria-label="Delete draft: {{ issue.title }}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M5 6l1 14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-14M10 10v7M14 10v7"/></svg>
+    </button>
+  </form>
+  {% endif %}
+</div>
