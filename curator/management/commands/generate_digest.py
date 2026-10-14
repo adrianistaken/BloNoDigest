@@ -1,37 +1,23 @@
-"""Weekly digest draft job (spec §22). Schedule Wednesday night / Thursday
-morning. Never sends — the admin reviews and sends from the dashboard.
+"""Compatibility entry point for the retired scheduled digest job.
 
-    python manage.py generate_digest
+Keep old Railway services harmless until they are removed. Drafts are now
+created only through the dashboard's manual Generate draft action.
 """
 
-from datetime import date
-
 from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError
-
-from curator.digests import generate_digest_issue
-from curator.models import Region
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = "Generate a draft digest issue from approved events"
+    help = "Retired scheduled job; generate digest drafts manually in the dashboard"
 
     def add_arguments(self, parser):
+        # Accept legacy arguments so an old scheduled invocation exits cleanly.
         parser.add_argument("--region", default=settings.DEFAULT_REGION_SLUG)
-        parser.add_argument("--start", help="Weekend start date YYYY-MM-DD (default: upcoming Friday)")
+        parser.add_argument("--start")
 
     def handle(self, *args, **options):
-        start = date.fromisoformat(options["start"]) if options["start"] else None
-        try:
-            issue = generate_digest_issue(options["region"], start_date=start)
-        except Region.DoesNotExist:
-            raise CommandError(f"No region {options['region']!r}")
-        event_count = issue.digest_events.count()
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Draft created: {issue.title!r} with {event_count} events "
-                f"({issue.target_start_date} – {issue.target_end_date}). Review it in the dashboard."
-            )
+            "Automatic digest draft generation is disabled. "
+            "Use Generate draft on the dashboard's Digests page when ready."
         )
-        if event_count == 0:
-            self.stdout.write(self.style.WARNING("No approved events matched the window — approve events first."))

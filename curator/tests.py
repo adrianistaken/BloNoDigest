@@ -1165,7 +1165,28 @@ class AutomationPanelTests(TestCase):
         response = self.client.get("/admin-dashboard/")
         self.assertContains(response, "Automations")
         self.assertContains(response, "Nightly event import")
-        self.assertContains(response, "every Thursday")
+        self.assertNotContains(response, "Thursday digest draft")
+
+    def test_retired_digest_job_does_not_create_drafts(self):
+        from io import StringIO
+        from django.core.management import call_command
+
+        make_region()
+        output = StringIO()
+        call_command("generate_digest", stdout=output)
+        self.assertFalse(DigestIssue.objects.exists())
+        self.assertIn("disabled", output.getvalue())
+
+    def test_manual_digest_generation_still_creates_a_draft(self):
+        make_region()
+        user = User.objects.create_superuser("admin", "admin@example.com", "pass12345")
+        self.client.force_login(user)
+
+        response = self.client.post("/admin-dashboard/digests/")
+
+        issue = DigestIssue.objects.get()
+        self.assertEqual(issue.status, DigestIssue.Status.DRAFT)
+        self.assertRedirects(response, f"/admin-dashboard/digests/{issue.pk}/")
 
 
 @override_settings(

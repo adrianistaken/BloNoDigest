@@ -22,11 +22,6 @@ CRON_JOBS = [
         "file": "railway.import-cron.json",
         "what": "Fetches every enabled source, refreshes the event roster, flags broken sources.",
     },
-    {
-        "name": "Thursday digest draft",
-        "file": "railway.digest-cron.json",
-        "what": "Assembles a draft from events you've approved. Never sends anything.",
-    },
 ]
 
 DAY_NAMES = {

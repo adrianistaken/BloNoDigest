@@ -6,7 +6,6 @@
   },
   "deploy": {
     "startCommand": "python manage.py generate_digest",
-    "cronSchedule": "0 11 * * 4",
     "restartPolicyType": "NEVER"
   }
 }
