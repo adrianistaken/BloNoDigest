@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime, time, timedelta
+from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -123,11 +124,11 @@ def events(request):
     region = _default_region()
     queryset = region.events.select_related("primary_source", "duplicate_of").all()
 
-    status = request.GET.get("status", "")
+    status = request.GET.get("status", Event.Status.NEEDS_REVIEW)
     if status:
         queryset = queryset.filter(status=status)
 
-    quick = request.GET.get("filter", "")
+    quick = request.GET.get("filter", "this_weekend")
     today = timezone.now().date()
     friday, sunday = upcoming_weekend(region.timezone)
     if quick == "this_weekend":
@@ -167,7 +168,8 @@ def events(request):
 
     # Prebuilt header links that preserve filters and flip direction on re-click
     base_params = {"status": status, "filter": quick, "source": source_slug}
-    filter_query = "&".join(f"{k}={v}" for k, v in base_params.items() if v)
+    # Preserve explicit empty values so sorting keeps "all" / "none" selected.
+    filter_query = urlencode(base_params)
     sort_columns = {}
     for key in sortable:
         next_dir = "desc" if (sort == key and direction == "asc") else "asc"
