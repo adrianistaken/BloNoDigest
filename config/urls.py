@@ -15,6 +15,7 @@ dashboard_patterns = (
         path("copy-desk/", dashboard_views.copy_desk, name="copy_desk"),
         path("events/<int:event_id>/", dashboard_views.event_detail, name="event_detail"),
         path("events/<int:event_id>/action/", dashboard_views.event_action, name="event_action"),
+        path("ai/quick-event/", dashboard_views.quick_event_draft, name="quick_event_draft"),
         path("ai/shorten-description/", dashboard_views.shorten_description, name="shorten_description"),
         path("digests/", dashboard_views.digests, name="digests"),
         path("digests/<int:issue_id>/", dashboard_views.digest_detail, name="digest_detail"),

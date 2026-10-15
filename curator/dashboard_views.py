@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
-from .ai import AIShorteningError, shorten_event_description
+from .ai import AIShorteningError, shorten_event_description, draft_quick_event
 from .automations import get_automations
 from .digests import duplicate_digest_issue, generate_digest_issue, upcoming_weekend
 from .emails import email_layout, featured_pick, render_digest, send_digest, send_test_email, send_test_welcome_email
@@ -332,6 +332,21 @@ def event_detail(request, event_id):
         "source_links": event.source_links.select_related("source"),
     }
     return render(request, "dashboard/event_detail.html", context)
+
+
+@staff_member_required
+@require_POST
+def quick_event_draft(request):
+    source_text = request.POST.get("source_text", "").strip()
+    if not source_text or len(source_text) > 20000:
+        return JsonResponse({"error": "Paste event details between 1 and 20,000 characters."}, status=400)
+    region = _default_region()
+    try:
+        result = draft_quick_event(source_text, timezone_name=region.timezone,
+                                  today=timezone.localdate(timezone=ZoneInfo(region.timezone)).isoformat())
+    except AIShorteningError as exc:
+        return JsonResponse({"error": str(exc)}, status=503)
+    return JsonResponse(result)
 
 
 @staff_member_required
