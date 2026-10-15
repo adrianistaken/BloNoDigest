@@ -1,0 +1,9 @@
+<form method="post" class="js-live p-4 border-b border-slate-100">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="set_section_intro">
+  <input type="hidden" name="section_id" value="{{ section_id }}">
+  <label for="section-intro-{{ section_id }}" class="block text-sm font-bold text-slate-600">Section intro <span class="font-normal text-slate-400">(optional)</span></label>
+  <textarea id="section-intro-{{ section_id }}" name="intro_text" rows="3" placeholder="Lots of live music this week — here are a few shows worth catching." class="mt-1 w-full border rounded px-2 py-1.5 text-sm">{{ intro_text }}</textarea>
+  <p class="mt-1 text-xs text-slate-500">Appears right below this section’s heading, before its events. Just for this issue.</p>
+  <button class="mt-2 bg-slate-900 text-white text-xs px-3 py-1.5 rounded hover:bg-slate-700">Save intro</button>
+</form>

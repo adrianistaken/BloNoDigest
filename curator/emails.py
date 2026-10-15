@@ -101,6 +101,7 @@ def email_layout(issue):
                 "key": f"custom-{custom.pk}",
                 "custom_pk": custom.pk,
                 "label": custom.title,
+                "intro_text": custom.intro_text,
                 "meta": None,  # curator sections: just the title, no badge
                 "events": events,
                 "chunks": _day_chunks(events, force=True),

@@ -569,7 +569,7 @@ class DigestTests(TestCase):
         issue.media_enabled = True
         issue.media_url = "https://example.com/image.png"
         issue.save()
-        section = issue.custom_sections.create(title="My picks", position=3)
+        section = issue.custom_sections.create(title="My picks", intro_text="This week's favorites.", position=3)
         issue.custom_sections.create(title="Empty section", position=4)
         entry = issue.digest_events.get(event=event)
         entry.custom_section = section
@@ -601,6 +601,7 @@ class DigestTests(TestCase):
             self.assertEqual(getattr(copied, field), getattr(entry, field))
         self.assertNotEqual(copied.custom_section_id, section.pk)
         self.assertEqual(copied.custom_section.digest_issue_id, duplicate.pk)
+        self.assertEqual(copied.custom_section.intro_text, section.intro_text)
         self.assertEqual(duplicate.custom_sections.count(), 2)
         duplicate.delete()
         issue.refresh_from_db()
@@ -933,6 +934,53 @@ class DigestTests(TestCase):
             "Puzzle Palooza",
             [d.event.canonical_title for day in days for d in day["events"]],
         )
+
+    def test_section_intro_save_render_and_clear(self):
+        self._event("Spotlight", score=10)
+        event = self._event("Evening concert", score=5)
+        issue = generate_digest_issue(self.region.slug)
+        section = issue.custom_sections.create(title="Music this week")
+        self.client.force_login(User.objects.create_user("intro-editor", is_staff=True))
+        url = f"/admin-dashboard/digests/{issue.pk}/"
+        self.assertContains(self.client.get(url), f'id="section-intro-{section.pk}"')
+        intro = 'A week of music & friends.\nBring <friends>!'
+        response = self.client.post(url, {
+            "action": "set_section_intro", "section_id": section.pk,
+            "intro_text": f"  {intro}  ",
+        })
+        self.assertEqual(response.status_code, 302)
+        section.refresh_from_db()
+        self.assertEqual(section.intro_text, intro)
+        # Empty sections retain their intro in the editor but stay out of emails.
+        self.assertContains(self.client.get(url), "A week of music &amp; friends.")
+        self.assertNotIn(intro, render_digest(issue, "#")[1])
+        issue.digest_events.filter(event=event).update(custom_section=section)
+        self.assertContains(self.client.get(url), f'id="section-intro-{section.pk}"')
+        for web_version in (False, True):
+            html, text = render_digest(issue, "#", web_version=web_version)
+            escaped = 'A week of music &amp; friends.<br>Bring &lt;friends&gt;!'
+            self.assertIn(escaped, html)
+            self.assertLess(html.index("Music this week</span>"), html.index(escaped))
+            self.assertLess(html.index(escaped), html.index("Evening concert"))
+            self.assertIn(f"== MUSIC THIS WEEK ==\n{intro}", text)
+        self.client.post(url, {
+            "action": "set_section_intro", "section_id": section.pk, "intro_text": "",
+        })
+        section.refresh_from_db()
+        self.assertEqual(section.intro_text, "")
+        self.assertNotIn("A week of music", render_digest(issue, "#")[0])
+
+    def test_section_intro_cannot_update_another_issue(self):
+        issue = generate_digest_issue(self.region.slug)
+        other = generate_digest_issue(self.region.slug)
+        section = other.custom_sections.create(title="Music", intro_text="Original")
+        self.client.force_login(User.objects.create_user("scoped-editor", is_staff=True))
+        response = self.client.post(f"/admin-dashboard/digests/{issue.pk}/", {
+            "action": "set_section_intro", "section_id": section.pk, "intro_text": "Changed",
+        })
+        self.assertEqual(response.status_code, 404)
+        section.refresh_from_db()
+        self.assertEqual(section.intro_text, "Original")
 
     def test_removed_event_leaves_email_and_restore_returns_it(self):
         from .emails import email_layout

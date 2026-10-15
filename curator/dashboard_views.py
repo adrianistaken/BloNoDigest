@@ -414,6 +414,12 @@ def digest_detail(request, issue_id):
                     title__iexact=title
                 ).exists():
                     SectionPreset.objects.create(title=title)
+        elif action == "set_section_intro":
+            section = get_object_or_404(
+                DigestSection, pk=request.POST.get("section_id"), digest_issue=issue
+            )
+            section.intro_text = request.POST.get("intro_text", "").strip()
+            section.save(update_fields=["intro_text"])
         elif action == "delete_preset":
             get_object_or_404(SectionPreset, pk=request.POST.get("preset_id")).delete()
         elif action == "delete_section":

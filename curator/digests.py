@@ -36,7 +36,7 @@ def duplicate_digest_issue(source):
     sections = {}
     for section in source.custom_sections.all():
         sections[section.pk] = issue.custom_sections.create(
-            title=section.title, position=section.position,
+            title=section.title, intro_text=section.intro_text, position=section.position,
         )
     event_fields = (
         "event_id", "section", "position", "custom_title", "custom_time",

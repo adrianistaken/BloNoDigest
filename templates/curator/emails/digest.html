@@ -127,6 +127,9 @@
       </tr></table>
 
       <div style="margin-top:4px;">
+        {% if group.intro_text %}
+        <p style="font-family: Georgia, 'Times New Roman', serif; font-size:16px; font-style:italic; line-height:1.6; color:#B15D3A; margin:10px 0 16px;">{{ group.intro_text|linebreaksbr }}</p>
+        {% endif %}
         {% for chunk in group.chunks %}
         {% if chunk.date %}
         <!-- Day sub-header: sections read day by day -->

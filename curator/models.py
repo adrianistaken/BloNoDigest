@@ -376,6 +376,7 @@ class DigestSection(models.Model):
 
     digest_issue = models.ForeignKey(DigestIssue, on_delete=models.CASCADE, related_name="custom_sections")
     title = models.CharField(max_length=100)
+    intro_text = models.TextField(blank=True)
     position = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 

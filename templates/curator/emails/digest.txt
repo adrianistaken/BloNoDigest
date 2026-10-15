@@ -22,6 +22,8 @@ Read online: {{ issue_url }}
 {% endfor %}{% endfor %}
 {% for group in sections %}
 == {{ group.label|upper }} ==
+{% if group.intro_text %}{{ group.intro_text }}
+{% endif %}
 {% for de in group.events %}
 {{ de.event.starts_at|date:"D, M j" }}{% if de.display_time %} · {{ de.display_time }}{% endif %}
 {{ de.display_title }}

@@ -134,6 +134,9 @@
         <span class="text-xs font-normal text-slate-400">automatic: events past the weekend</span>
         {% endif %}
       </summary>
+      {% if group.custom_pk %}
+      {% include "dashboard/_digest_section_intro.html" with section_id=group.custom_pk intro_text=group.intro_text %}
+      {% endif %}
       <ul class="divide-y divide-slate-100">
         {% for de in group.events %}{% include "dashboard/_digest_event_row.html" %}{% endfor %}
       </ul>
@@ -158,6 +161,7 @@
           <button name="action" value="delete_section" class="text-xs font-normal bg-red-50 hover:bg-red-100 text-red-700 px-2 py-0.5 rounded">delete section</button>
         </form>
       </summary>
+      {% include "dashboard/_digest_section_intro.html" with section_id=cs.pk intro_text=cs.intro_text %}
       <p class="p-4 text-sm text-slate-400 italic">Drag events here (or use an event's “Place” dropdown). Empty sections never appear in the email.</p>
     </details>
     {% endfor %}
