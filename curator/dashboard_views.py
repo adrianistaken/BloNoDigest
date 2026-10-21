@@ -17,7 +17,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.clickjacking import xframe_options_sameorigin
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from .ai import AIShorteningError, shorten_event_description, draft_quick_event
 from .automations import get_automations
@@ -277,6 +277,54 @@ def event_create(request):
             messages.success(request, "Manual event created.")
             return redirect("dashboard:event_detail", event_id=event.pk)
         return render(request, "dashboard/event_create.html", {"form": form, "region": region})
+
+
+@staff_member_required
+@require_GET
+def quick_event_choices(request):
+    """Read-only, region-scoped source events for the quick event picker."""
+    region = _default_region()
+    with timezone.override(ZoneInfo(region.timezone)):
+        events = region.events.all()
+        week = request.GET.get("week", "")
+        if week:
+            try:
+                day = datetime.strptime(week, "%Y-%m-%d").date()
+                monday = day - timedelta(days=day.weekday())
+                end = monday + timedelta(days=7)
+                start_at = from_current_timezone(datetime.combine(monday, time.min))
+                end_at = from_current_timezone(datetime.combine(end, time.min))
+            except (ValueError, OverflowError):
+                return JsonResponse({"error": "Choose a valid date within the week."}, status=400)
+            events = events.filter(starts_at__gte=start_at, starts_at__lt=end_at)
+        else:
+            events = events.filter(starts_at__lt=timezone.now())
+        status = request.GET.get("status", "")
+        if status == "approved":
+            events = events.filter(status=Event.Status.APPROVED)
+        elif status == "not_approved":
+            events = events.exclude(status=Event.Status.APPROVED)
+        elif status:
+            return JsonResponse({"error": "Choose a valid approval status."}, status=400)
+        query = request.GET.get("q", "").strip()
+        if query:
+            events = events.filter(Q(canonical_title__icontains=query) | Q(editorial_title__icontains=query))
+        page = Paginator(events.order_by("-starts_at", "-pk"), 20).get_page(request.GET.get("page"))
+        results = []
+        for event in page:
+            copy = DigestEvent(event=event)
+            fields = {
+                "start_date": timezone.localdate(event.starts_at).isoformat(),
+                "editorial_title": event.editorial_title or event.canonical_title,
+                "editorial_time": event.editorial_time or copy.display_time,
+                "editorial_location": copy.display_location,
+                "editorial_price": event.editorial_price or copy.display_price,
+                "source_url": event.source_url,
+                "editorial_description": copy.blurb,
+            }
+            results.append({"id": event.pk, "status": event.get_status_display(), "fields": fields})
+        return JsonResponse({"events": results, "page": page.number,
+                             "pages": page.paginator.num_pages, "count": page.paginator.count})
 
 
 @staff_member_required

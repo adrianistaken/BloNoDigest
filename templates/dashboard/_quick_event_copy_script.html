@@ -1,0 +1,74 @@
+<script>
+(() => {
+  const picker = document.getElementById('copy-picker');
+  const filters = document.getElementById('copy-filters');
+  const form = document.querySelector('form[data-ai-scope]');
+  const status = document.getElementById('copy-status');
+  const results = document.getElementById('copy-results');
+  const pagination = document.getElementById('copy-pagination');
+  const previous = document.getElementById('copy-prev');
+  const next = document.getElementById('copy-next');
+  let page = 1;
+  let requestId = 0;
+  let loaded = false;
+  async function load(requestedPage = 1) {
+    const currentRequest = ++requestId;
+    const params = new URLSearchParams(new FormData(filters));
+    params.set('page', requestedPage);
+    results.replaceChildren();
+    pagination.hidden = true;
+    status.textContent = 'Loading events…';
+    try {
+      const response = await fetch("{% url 'dashboard:quick_event_choices' %}?" + params);
+      if (response.redirected) throw new Error('Your session expired. Sign in and try again.');
+      const data = await response.json();
+      if (currentRequest !== requestId) return;
+      if (!response.ok) throw new Error(data.error || 'Could not load events. Try again.');
+      page = data.page;
+      loaded = true;
+      status.textContent = data.count ? data.count + ' events found. Select one to fill the form.' : 'No events match these filters.';
+      for (const event of data.events) {
+        const row = document.createElement('li');
+        row.className = 'flex flex-wrap items-center justify-between gap-3 py-3';
+        const info = document.createElement('div');
+        const title = document.createElement('p');
+        title.className = 'font-semibold text-sm';
+        title.textContent = event.fields.editorial_title;
+        const meta = document.createElement('p');
+        meta.className = 'text-xs text-slate-500';
+        meta.textContent = [event.fields.start_date, event.status, event.fields.editorial_location].filter(Boolean).join(' · ');
+        info.append(title, meta);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'rounded border border-indigo-200 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50';
+        button.textContent = 'Use this event';
+        button.setAttribute('aria-label', 'Use ' + event.fields.editorial_title + ' on ' + event.fields.start_date);
+        button.addEventListener('click', () => {
+          const fields = Object.keys(event.fields);
+          if (fields.some(name => form.elements[name].value.trim()) && !window.confirm('Replace the current quick event draft with this event’s details?')) return;
+          for (const name of fields) {
+            form.elements[name].value = event.fields[name];
+            form.elements[name].dispatchEvent(new Event('input', {bubbles: true}));
+          }
+          status.textContent = 'Copied ' + event.fields.editorial_title + '. Update the event date and review the details below. The original event is unchanged.';
+          form.elements.start_date.focus();
+          form.scrollIntoView({behavior: 'smooth', block: 'start'});
+        });
+        row.append(info, button);
+        results.append(row);
+      }
+      pagination.hidden = data.pages <= 1;
+      previous.disabled = page <= 1;
+      next.disabled = page >= data.pages;
+      document.getElementById('copy-page').textContent = 'Page ' + page + ' of ' + data.pages;
+    } catch (error) {
+      if (currentRequest === requestId) status.textContent = error.message || 'Could not load events. Try again.';
+    }
+  }
+  picker.addEventListener('toggle', () => { if (picker.open && !loaded) load(); });
+  filters.addEventListener('submit', event => { event.preventDefault(); load(); });
+  filters.addEventListener('reset', () => { setTimeout(() => load(), 0); });
+  previous.addEventListener('click', () => load(page - 1));
+  next.addEventListener('click', () => load(page + 1));
+})();
+</script>

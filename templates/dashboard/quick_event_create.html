@@ -5,6 +5,25 @@
 <p class="mt-2 text-slate-600">Create an event from the copy you want readers to see. The date is used to schedule it; display time can say anything you need.</p>
 <p class="mt-1 text-sm text-slate-500">Dates use {{ region.timezone }}.</p>
 
+<details id="copy-picker" class="mt-4 rounded bg-white p-5 shadow">
+  <summary class="cursor-pointer font-semibold text-indigo-950">Copy an existing event</summary>
+  <p class="mt-2 text-sm text-slate-600">Browse recent past events, or choose any date to see that Monday–Sunday week. Copy its details, then update the date and any other fields for the new event.</p>
+  <form id="copy-filters" class="mt-3 flex flex-wrap items-end gap-3 text-sm">
+    <label class="block">Search title<input name="q" type="search" class="mt-1 block rounded border px-3 py-2" placeholder="Event title"></label>
+    <label class="block">Date within week<input name="week" type="date" class="mt-1 block rounded border px-3 py-2"></label>
+    <label class="block">Approval<select name="status" class="mt-1 block rounded border px-3 py-2"><option value="">All statuses</option><option value="approved">Approved</option><option value="not_approved">Not approved</option></select></label>
+    <button class="rounded bg-slate-900 px-4 py-2 text-white">Find events</button>
+    <button type="reset" class="rounded border px-4 py-2">Recent events</button>
+  </form>
+  <p id="copy-status" class="mt-3 text-sm text-slate-600" role="status" aria-live="polite"></p>
+  <ul id="copy-results" class="mt-2 divide-y"></ul>
+  <div id="copy-pagination" class="mt-3 flex items-center gap-3 text-sm" hidden>
+    <button type="button" id="copy-prev" class="rounded border px-3 py-1 disabled:opacity-50">Previous</button>
+    <span id="copy-page"></span>
+    <button type="button" id="copy-next" class="rounded border px-3 py-1 disabled:opacity-50">Next</button>
+  </div>
+</details>
+
 <section class="mt-4 rounded bg-white p-5 shadow" aria-labelledby="autofill-title">
   <h2 id="autofill-title" class="font-semibold text-indigo-950">Fill from event text with AI</h2>
   <p class="mt-2 text-sm text-slate-600">Open the Facebook event, expand its details, and copy the title, date, time, location, price, and description into this box. AI will fill the title, date, time, location, and price. Write your newsletter description in the form below.</p>
@@ -42,6 +61,7 @@
 </form>
 {% endblock %}
 {% block scripts %}{% include "dashboard/_ai_shortener_script.html" %}
+{% include "dashboard/_quick_event_copy_script.html" %}
 <script>
 (() => {
   const button = document.getElementById('fill-event');
