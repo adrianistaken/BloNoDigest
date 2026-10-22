@@ -4,7 +4,13 @@
 
 {% block content %}
 <section class="max-w-4xl mx-auto px-5 pt-20 pb-10 text-center">
-  {% if subscriber.status == "active" %}
+  {% if is_test %}
+  <h1 class="font-display font-black text-4xl mt-4">This was a test email.</h1>
+  <p class="mt-4 text-lg text-[color:var(--ink-soft)] max-w-xl mx-auto">
+    No subscription has been changed. To unsubscribe, use the link in a regular newsletter or your signup welcome email.
+  </p>
+  <a href="/" class="btn-primary inline-block mt-8 px-6 py-3 rounded-md font-bold">Back to the front page</a>
+  {% elif subscriber.status == "active" %}
   <h1 class="font-display font-black text-4xl mt-4">Leaving so soon?</h1>
   <p class="mt-4 text-lg text-[color:var(--ink-soft)] max-w-xl mx-auto">
     This will stop the Thursday digest for <strong>{{ subscriber.email }}</strong>.

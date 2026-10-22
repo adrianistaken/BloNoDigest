@@ -496,6 +496,21 @@ class SignupTests(TestCase):
         subscriber.refresh_from_db()
         self.assertEqual(subscriber.status, "active")
 
+    def test_test_email_unsubscribe_link_is_safe_preview(self):
+        subscriber = Subscriber.objects.create(region=self.region, email="preview@example.com")
+        for method in (self.client.get, self.client.post):
+            response = method("/unsubscribe/test-token/")
+            self.assertContains(response, "This was a test email.")
+            self.assertContains(response, "No subscription has been changed.")
+            self.assertNotContains(response, "Yes, unsubscribe me")
+            self.assertNotContains(response, subscriber.email)
+            subscriber.refresh_from_db()
+            self.assertEqual(subscriber.status, "active")
+            self.assertIsNone(subscriber.unsubscribed_at)
+
+    def test_unknown_unsubscribe_token_still_returns_not_found(self):
+        self.assertEqual(self.client.get("/unsubscribe/unknown-token/").status_code, 404)
+
     def test_health(self):
         self.assertEqual(self.client.get("/health/").json()["status"], "ok")
 

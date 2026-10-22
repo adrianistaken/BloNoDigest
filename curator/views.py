@@ -78,6 +78,8 @@ def thanks(request):
 def unsubscribe(request, token):
     """GET shows a confirmation page; only an explicit POST unsubscribes.
     (Also protects against mail scanners that prefetch every link.)"""
+    if token == "test-token":
+        return render(request, "curator/unsubscribe.html", {"is_test": True})
     subscriber = get_object_or_404(Subscriber, unsubscribe_token=token)
     just_unsubscribed = False
     if request.method == "POST" and subscriber.status == Subscriber.Status.ACTIVE:

@@ -11,7 +11,7 @@
     <input type="email" name="test_email" placeholder="{{ request.user.email|default:'Admin email' }}" class="block mt-1 border rounded px-3 py-2 text-sm font-normal" aria-describedby="welcome-test-help">
   </label>
   <button type="submit" class="bg-slate-800 text-white text-sm px-4 py-2 rounded hover:bg-slate-700">Send test welcome email</button>
-  <p id="welcome-test-help" class="w-full text-xs text-slate-500">Leave the address blank to send to your admin email. The unsubscribe link in a test email is only a placeholder.</p>
+  <p id="welcome-test-help" class="w-full text-xs text-slate-500">Leave the address blank to send to your admin email. The unsubscribe link in a test email opens a preview notice and does not change any subscription.</p>
 </form>
 
 <div class="grid sm:grid-cols-3 gap-4 mt-5">
