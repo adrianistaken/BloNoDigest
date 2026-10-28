@@ -60,7 +60,7 @@
           <span class="js-copy-badge rounded px-2 py-0.5 text-[11px] font-semibold {% if event.has_editorial_copy %}bg-indigo-100 text-indigo-800{% else %}bg-amber-100 text-amber-800{% endif %}">{% if event.has_editorial_copy %}edited{% else %}source copy{% endif %}</span>
           {% if event.status == 'approved' %}<span class="text-xs font-semibold text-green-700">approved</span>{% elif event.status == 'needs_review' %}<span class="text-xs font-semibold text-amber-700">needs review</span>{% else %}<span class="text-xs text-slate-500">{{ event.status }}</span>{% endif %}
         </div>
-        <p class="mt-0.5 text-xs text-slate-500">{{ event.starts_at|date:"D, M j" }}{% if event.time_is_known %} at {{ event.starts_at|date:"g:i A" }}{% else %}, time TBD{% endif %} · {{ event.location_display }} · {{ event.primary_source.name|default:"manual" }}</p>
+        <p class="mt-0.5 text-xs text-slate-500">{{ event.starts_at|date:"D, M j" }}{% if event.display_time %} at {{ event.display_time }}{% else %}, time TBD{% endif %} · {{ event.location_display }} · {{ event.primary_source.name|default:"manual" }}</p>
       </div>
       <span class="text-xs text-slate-400">compare and edit</span>
       {% if event.status != 'rejected' %}
@@ -85,7 +85,7 @@
         <dl class="mt-3 space-y-3 text-sm">
           <div><dt class="text-xs font-semibold text-slate-500">Title</dt><dd class="mt-0.5">{{ event.canonical_title }}</dd></div>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div><dt class="text-xs font-semibold text-slate-500">Time</dt><dd class="mt-0.5">{% if event.time_is_known %}{{ event.starts_at|date:"g:i A" }}{% else %}TBD{% endif %}</dd></div>
+            <div><dt class="text-xs font-semibold text-slate-500">Time</dt><dd class="mt-0.5">{{ event.source_time_display|default:"TBD" }}</dd></div>
             <div><dt class="text-xs font-semibold text-slate-500">Location</dt><dd class="mt-0.5">{{ event.location_display }}</dd></div>
             <div><dt class="text-xs font-semibold text-slate-500">Price</dt><dd class="mt-0.5">{{ event.price_text|default:"not listed" }}</dd></div>
           </div>
@@ -155,6 +155,8 @@
     event.preventDefault();
     const status = form.querySelector('.js-copy-status');
     const button = event.submitter;
+    const timeInput = form.querySelector('[name$="-editorial_time"]');
+    const timeBefore = timeInput.value;
     status.textContent = 'Saving…';
     if (button) button.disabled = true;
     try {
@@ -165,6 +167,9 @@
       });
       const result = await response.json();
       if (!response.ok) throw new Error('Check the highlighted fields and try again.');
+      if (timeInput.value === timeBefore && typeof result.editorial_time === 'string') {
+        timeInput.value = result.editorial_time;
+      }
       const badge = form.closest('.copy-editor').querySelector('.js-copy-badge');
       const edited = result.has_editorial_copy;
       badge.textContent = edited ? 'edited' : 'source copy';

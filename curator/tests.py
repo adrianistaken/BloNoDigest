@@ -573,7 +573,7 @@ class DigestTests(TestCase):
                 )
                 html, _ = render_digest(issue, "#")
                 self.assertIn("Iron Ninja Games", html)
-                self.assertIn("4–6pm", html)
+                self.assertIn("4-6pm", html)
 
     def test_duplicate_copies_content_and_sections_without_send_history(self):
         event = self._event("Original event")
@@ -732,7 +732,7 @@ class DigestTests(TestCase):
         event = self._event("Evening Fights", day_offset=1, hour=19)
         issue = generate_digest_issue("bloomington-normal")
         de = issue.digest_events.get(event=event)
-        self.assertEqual(de.display_time, "7:00 PM")
+        self.assertEqual(de.display_time, "7pm")
 
         User.objects.create_superuser("timekeeper", "time@example.com", "pass12345")
         self.client.login(username="timekeeper", password="pass12345")
@@ -751,11 +751,11 @@ class DigestTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         de.refresh_from_db()
-        self.assertEqual(de.event.editorial_time, "Doors 6:00 PM; fights 7:00 PM")
-        self.assertEqual(de.display_time, "Doors 6:00 PM; fights 7:00 PM")
+        self.assertEqual(de.event.editorial_time, "Doors 6pm; fights 7pm")
+        self.assertEqual(de.display_time, "Doors 6pm; fights 7pm")
         html, text = render_digest(issue, "#")
-        self.assertIn("Doors 6:00 PM; fights 7:00 PM", html)
-        self.assertIn("Doors 6:00 PM; fights 7:00 PM", text)
+        self.assertIn("Doors 6pm; fights 7pm", html)
+        self.assertIn("Doors 6pm; fights 7pm", text)
 
         de.event.editorial_time = "-"
         self.assertEqual(de.display_time, "")
@@ -1452,7 +1452,7 @@ class AIShorteningTests(TestCase):
         self.assertEqual(event.editorial_description, "Concise newsletter copy.")
         self.assertEqual(event.editorial_price, "Free")
         self.assertEqual(event.description, "Long source copy.")
-        self.assertEqual(response.json(), {"saved": True, "has_editorial_copy": True})
+        self.assertEqual(response.json(), {"saved": True, "has_editorial_copy": True, "editorial_time": ""})
 
         response = self.client.post(
             "/admin-dashboard/copy-desk/",
@@ -1460,7 +1460,7 @@ class AIShorteningTests(TestCase):
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"saved": True, "has_editorial_copy": False})
+        self.assertEqual(response.json(), {"saved": True, "has_editorial_copy": False, "editorial_time": ""})
         event.refresh_from_db()
         self.assertFalse(event.has_editorial_copy)
         self.assertEqual(event.description, "Long source copy.")
@@ -1626,9 +1626,9 @@ class QuickEventTests(TestCase):
         self.assertEqual(event.description, self.data["editorial_description"])
         self.assertEqual(event.venue_name, self.data["editorial_location"])
         self.assertEqual(event.price_text, self.data["editorial_price"])
-        self.assertEqual(event.editorial_time, self.data["editorial_time"])
+        self.assertEqual(event.editorial_time, "Saturday, 6-8pm")
         self.assertEqual(event.source_url, self.data["source_url"])
-        self.assertContains(self.client.get(response.url), self.data["editorial_time"])
+        self.assertContains(self.client.get(response.url), "Saturday, 6-8pm")
 
     def test_required_fields_and_staff_access(self):
         response = self.client.post(self.url, {**self.data, "editorial_title": ""})

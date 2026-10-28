@@ -1,0 +1,153 @@
+<script>
+(() => {
+  const button = document.getElementById('fill-event');
+  const status = document.getElementById('fill-status');
+  const sourceText = document.getElementById('event-source-text');
+  const imageInput = document.getElementById('event-source-image');
+  const pasteImage = document.getElementById('paste-event-image');
+  const imageStatus = document.getElementById('event-image-status');
+  const preview = document.getElementById('event-image-preview');
+  const thumbnail = document.getElementById('event-image-thumbnail');
+  const imageName = document.getElementById('event-image-name');
+  const removeImage = document.getElementById('remove-event-image');
+  const fields = ['start_date', 'editorial_title', 'editorial_time', 'editorial_location', 'editorial_price'];
+  const form = document.querySelector('form[data-ai-scope]');
+  let sourceImage = null;
+  let previewUrl = null;
+  let clipboardRequest = 0;
+  const imageTypes = ['image/png', 'image/jpeg', 'image/webp'];
+
+  function clearImage() {
+    clipboardRequest++;
+    sourceImage = null;
+    thumbnail.removeAttribute('src');
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = null;
+    imageInput.value = '';
+    imageName.textContent = '';
+    preview.hidden = true;
+  }
+
+  function selectImage(file) {
+    if (!imageTypes.includes(file.type)) {
+      imageStatus.textContent = 'Use a PNG, JPEG, or WebP screenshot.';
+      return;
+    }
+    if (!file.size || file.size > 10 * 1024 * 1024) {
+      imageStatus.textContent = 'Use a screenshot no larger than 10 MB that is not empty.';
+      return;
+    }
+    clearImage();
+    sourceImage = file;
+    previewUrl = URL.createObjectURL(file);
+    thumbnail.src = previewUrl;
+    imageName.textContent = file.name || 'Pasted screenshot';
+    preview.hidden = false;
+    status.textContent = '';
+    imageStatus.textContent = 'Screenshot ready. Click Fill event with AI to read it.';
+  }
+
+  imageInput.addEventListener('change', () => {
+    const file = imageInput.files[0];
+    imageInput.value = '';
+    if (file) selectImage(file);
+  });
+  document.addEventListener('paste', event => {
+    // Browsers expose clipboard images through items, files, or both.
+    let files = Array.from(event.clipboardData?.items || [])
+      .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+      .map(item => item.getAsFile()).filter(Boolean);
+    if (!files.length) files = Array.from(event.clipboardData?.files || [])
+      .filter(file => file.type.startsWith('image/'));
+    if (!files.length) return; // Leave ordinary text paste to the browser.
+    event.preventDefault();
+    if (button.disabled) return;
+    if (files.length > 1) {
+      imageStatus.textContent = 'Paste one screenshot at a time.';
+      return;
+    }
+    selectImage(files[0]);
+  });
+  pasteImage.addEventListener('click', async () => {
+    const pasteHelp = 'Click in the event text box and press ⌘V or Ctrl+V to paste your screenshot.';
+    if (!navigator.clipboard?.read) {
+      imageStatus.textContent = pasteHelp;
+      sourceText.focus();
+      return;
+    }
+    const request = ++clipboardRequest;
+    pasteImage.disabled = true;
+    imageStatus.textContent = 'Reading screenshot from clipboard…';
+    try {
+      const items = await navigator.clipboard.read();
+      if (request !== clipboardRequest) return;
+      const item = items.find(item => imageTypes.some(type => item.types.includes(type)));
+      if (!item) {
+        imageStatus.textContent = 'No screenshot found on the clipboard. Copy a screenshot first, then paste it here.';
+        sourceText.focus();
+        return;
+      }
+      const type = imageTypes.find(type => item.types.includes(type));
+      const blob = await item.getType(type);
+      if (request !== clipboardRequest || button.disabled) return;
+      selectImage(new File([blob], 'pasted-screenshot.' + type.split('/')[1], {type}));
+    } catch (error) {
+      if (request === clipboardRequest) {
+        imageStatus.textContent = 'Your browser could not read the clipboard. ' + pasteHelp;
+        sourceText.focus();
+      }
+    } finally {
+      pasteImage.disabled = button.disabled;
+    }
+  });
+  removeImage.addEventListener('click', () => {
+    clearImage();
+    status.textContent = '';
+    imageStatus.textContent = 'Screenshot removed.';
+    sourceText.focus();
+  });
+  thumbnail.addEventListener('error', () => {
+    clearImage();
+    imageStatus.textContent = 'This image could not be opened. Try another screenshot.';
+  });
+
+  button.addEventListener('click', async () => {
+    const text = sourceText.value.trim();
+    if (!text && !sourceImage) { status.textContent = 'Paste event text or add a screenshot first.'; return; }
+    if (fields.some(name => form.elements[name].value.trim()) && !window.confirm('Replace the current draft fields with AI results? Your event link and description will be kept.')) return;
+    const before = Object.fromEntries(fields.map(name => [name, form.elements[name].value]));
+    clipboardRequest++;
+    button.disabled = sourceText.disabled = imageInput.disabled = pasteImage.disabled = removeImage.disabled = true;
+    status.textContent = sourceImage ? 'Reading event details from your screenshot…' : 'Reading event details…';
+    try {
+      const body = new FormData();
+      body.append('source_text', text);
+      if (sourceImage) body.append('source_image', sourceImage, sourceImage.name || 'screenshot.png');
+      const response = await fetch("{% url 'dashboard:quick_event_draft' %}", {
+        method: 'POST', headers: {'X-CSRFToken': form.elements.csrfmiddlewaretoken.value}, body
+      });
+      if (response.redirected) throw new Error('Your session expired. Sign in and try again.');
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'AI could not fill the event. Try again.');
+      let keptEdits = false;
+      fields.forEach(name => {
+        const input = form.elements[name];
+        if (input.value !== before[name]) { keptEdits = true; return; }
+        input.value = result.fields[name] || '';
+        input.dispatchEvent(new Event('input', {bubbles: true}));
+      });
+      const missing = fields.filter(name => !form.elements[name].value.trim()).map(name => ({start_date: 'date', editorial_title: 'title', editorial_time: 'time', editorial_location: 'location', editorial_price: 'price'})[name]);
+      status.textContent = ['Details ready. Review the fields, add your description, then create the event.',
+        keptEdits ? 'Kept edits you made while AI was working.' : '',
+        missing.length ? 'Check missing details: ' + missing.join(', ') + '.' : '',
+        ...(result.warnings || []),
+        Number.isInteger(result.usage?.total_tokens) ? 'Tokens used: ' + result.usage.total_tokens + '.' : ''
+      ].filter(Boolean).join(' ');
+    } catch (error) {
+      status.textContent = error.message || 'AI could not fill the event. Try again.';
+    } finally {
+      button.disabled = sourceText.disabled = imageInput.disabled = pasteImage.disabled = removeImage.disabled = false;
+    }
+  });
+})();
+</script>

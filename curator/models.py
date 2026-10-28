@@ -4,6 +4,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.timezone import now as tz_now
 
+from .time_formatting import format_clock, normalize_event_time
+
 
 def make_token():
     return secrets.token_urlsafe(32)
@@ -233,6 +235,24 @@ class Event(TimestampedModel):
     def __str__(self):
         return f"{self.canonical_title} @ {self.starts_at:%Y-%m-%d}"
 
+    def save(self, *args, **kwargs):
+        if kwargs.get("update_fields") is None or "editorial_time" in kwargs["update_fields"]:
+            self.editorial_time = normalize_event_time(self.editorial_time)
+        super().save(*args, **kwargs)
+
+    @property
+    def source_time_display(self):
+        if not self.time_is_known or not self.starts_at:
+            return ""
+        return format_clock(timezone.localtime(self.starts_at))
+
+    @property
+    def display_time(self):
+        custom = normalize_event_time(self.editorial_time)
+        if custom == "-":
+            return ""
+        return custom or self.source_time_display
+
     @property
     def missing_data_warnings(self):
         warnings = []
@@ -417,6 +437,11 @@ class DigestEvent(models.Model):
 
     TITLE_MAX_CHARS = 75
 
+    def save(self, *args, **kwargs):
+        if kwargs.get("update_fields") is None or "custom_time" in kwargs["update_fields"]:
+            self.custom_time = normalize_event_time(self.custom_time)
+        super().save(*args, **kwargs)
+
     @property
     def display_title(self):
         """Curator-written titles run verbatim; otherwise long source titles
@@ -435,14 +460,12 @@ class DigestEvent(models.Model):
     def display_time(self):
         """Curator-entered time wins; a single "-" hides the time entirely;
         blank falls back to the imported time when it is known."""
-        custom = (self.custom_time or self.event.editorial_time).strip()
+        custom = normalize_event_time(self.custom_time)
         if custom == "-":
             return ""
         if custom:
             return custom
-        if not self.event.time_is_known:
-            return ""
-        return timezone.localtime(self.event.starts_at).strftime("%I:%M %p").lstrip("0")
+        return self.event.display_time
 
     # City is implied for local venues in a local digest; it only earns its
     # spot on the meta line when the event is outside the core towns.

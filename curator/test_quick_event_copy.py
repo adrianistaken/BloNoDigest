@@ -61,7 +61,7 @@ class QuickEventCopyTests(TestCase):
         response = self.client.get(self.url, params).json()
         self.assertEqual([e['id'] for e in response['events']], [last.pk, wanted.pk])
         self.assertEqual(response['events'][1]['fields']['start_date'], '2026-10-19')
-        self.assertEqual(response['events'][1]['fields']['editorial_time'], '12:00 AM')
+        self.assertEqual(response['events'][1]['fields']['editorial_time'], '12am')
         self.assertEqual(self.client.get(self.url, {**params, 'status': 'approved', 'q': 'Autumn'}).json()['count'], 1)
         self.assertEqual(self.client.get(self.url, {**params, 'status': 'not_approved'}).json()['count'], 1)
         self.assertEqual(self.client.get(self.url, {'week': 'bad'}).status_code, 400)

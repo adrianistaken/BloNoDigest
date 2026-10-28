@@ -72,7 +72,7 @@
             <p class="text-xs text-amber-700 font-bold">possible dup of <a class="underline" href="{% url 'dashboard:event_detail' event.duplicate_of.pk %}">#{{ event.duplicate_of.pk }}</a></p>
           {% endif %}
         </td>
-        <td class="px-4 py-2 whitespace-nowrap">{{ event.starts_at|date:"D M j" }}{% if event.time_is_known %} {{ event.starts_at|date:"g:i A" }}{% endif %}</td>
+        <td class="px-4 py-2 whitespace-nowrap">{{ event.starts_at|date:"D M j" }}{% if event.display_time %} {{ event.display_time }}{% endif %}</td>
         <td class="px-4 py-2">{{ event.location_display|truncatechars:35 }}</td>
         <td class="px-4 py-2 text-slate-500">{{ event.primary_source.name|default:"Manual"|truncatechars:25 }}</td>
         <td class="px-4 py-2 text-xs text-slate-500">{{ event.categories|join:", " }}</td>

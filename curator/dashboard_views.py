@@ -1,5 +1,6 @@
 """Internal review dashboard (spec §19/§23). Staff-only, utilitarian."""
 
+import base64
 import logging
 from datetime import datetime, time, timedelta
 from urllib.parse import urlencode
@@ -23,7 +24,7 @@ from .ai import AIShorteningError, shorten_event_description, draft_quick_event
 from .automations import get_automations
 from .digests import duplicate_digest_issue, generate_digest_issue, upcoming_weekend
 from .emails import email_layout, featured_pick, render_digest, send_digest, send_test_email, send_test_welcome_email
-from .forms import EventCopyForm, EventForm, ManualEventForm, QuickEventForm
+from .forms import EventCopyForm, EventForm, ManualEventForm, QuickEventDraftForm, QuickEventForm
 from .ingest.dedupe import duplicate_group_key
 from .ingest.score import score_event
 from .ingest.importer import import_source
@@ -38,6 +39,7 @@ from .models import (
     Region,
     Subscriber,
 )
+from .time_formatting import normalize_event_time
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +207,8 @@ def copy_desk(request):
                 event.description = event.editorial_description
             event.save()
             if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                return JsonResponse({"saved": True, "has_editorial_copy": event.has_editorial_copy})
+                return JsonResponse({"saved": True, "has_editorial_copy": event.has_editorial_copy,
+                                     "editorial_time": event.editorial_time})
             messages.success(request, f"Newsletter copy saved: {event.canonical_title}")
         elif request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
@@ -316,7 +319,7 @@ def quick_event_choices(request):
             fields = {
                 "start_date": timezone.localdate(event.starts_at).isoformat(),
                 "editorial_title": event.editorial_title or event.canonical_title,
-                "editorial_time": event.editorial_time or copy.display_time,
+                "editorial_time": normalize_event_time(event.editorial_time) or copy.display_time,
                 "editorial_location": copy.display_location,
                 "editorial_price": event.editorial_price or copy.display_price,
                 "source_url": event.source_url,
@@ -385,12 +388,20 @@ def event_detail(request, event_id):
 @staff_member_required
 @require_POST
 def quick_event_draft(request):
-    source_text = request.POST.get("source_text", "").strip()
-    if not source_text or len(source_text) > 20000:
-        return JsonResponse({"error": "Paste event details between 1 and 20,000 characters."}, status=400)
+    if len(request.FILES.getlist("source_image")) > 1:
+        return JsonResponse({"error": "Use one screenshot at a time."}, status=400)
+    form = QuickEventDraftForm(request.POST, request.FILES)
+    if not form.is_valid():
+        return JsonResponse({"error": " ".join(message for errors in form.errors.values() for message in errors)}, status=400)
+    source_image = form.cleaned_data["source_image"]
+    image_data_url = None
+    if source_image is not None:
+        encoded_image = base64.b64encode(source_image.read()).decode("ascii")
+        image_data_url = f"data:{source_image.content_type};base64,{encoded_image}"
     region = _default_region()
     try:
-        result = draft_quick_event(source_text, timezone_name=region.timezone,
+        result = draft_quick_event(form.cleaned_data["source_text"], image_data_url=image_data_url,
+                                  timezone_name=region.timezone,
                                   today=timezone.localdate(timezone=ZoneInfo(region.timezone)).isoformat())
     except AIShorteningError as exc:
         return JsonResponse({"error": str(exc)}, status=503)

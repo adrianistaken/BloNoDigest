@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils import timezone
 
 from .models import (
     DigestEvent,
@@ -55,10 +56,15 @@ class EventSourceLinkInline(admin.TabularInline):
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ("canonical_title", "starts_at", "venue_name", "status", "quality_score")
+    list_display = ("canonical_title", "event_when", "venue_name", "status", "quality_score")
     list_filter = ("status", "region", "approved_for_digest")
     search_fields = ("canonical_title", "venue_name")
     inlines = [EventSourceLinkInline]
+
+    @admin.display(description="When", ordering="starts_at")
+    def event_when(self, event):
+        date = timezone.localtime(event.starts_at).strftime("%b %d, %Y")
+        return f"{date} · {event.display_time}" if event.display_time else date
 
 
 class DigestEventInline(admin.TabularInline):
